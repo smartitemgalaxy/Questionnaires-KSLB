@@ -1,0 +1,5 @@
+{
+  "name": "Questionnaires google form",
+  "description": "Une application web pour remplir des questionnaires médicaux, incluant le Questionnaire sur les Croyances d'Évitement de la Peur (FABQ) et un questionnaire médical pré-consultation. Les réponses peuvent être revues et imprimées.",
+  "requestFramePermissions": []
+}
