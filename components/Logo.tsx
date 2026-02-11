@@ -1,5 +1,6 @@
 
 import React from 'react';
+import logoSrc from '/logo_kslb.png';
 
 interface LogoProps {
   className?: string;
@@ -8,7 +9,7 @@ interface LogoProps {
 const Logo: React.FC<LogoProps> = ({ className = "h-24 w-24" }) => {
   return (
     <img
-      src="/logo_kslb.png"
+      src={logoSrc}
       alt="Logo KSLB"
       className={`object-contain ${className}`}
     />
