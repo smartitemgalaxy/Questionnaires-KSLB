@@ -101,7 +101,7 @@ import {
 } from './constants';
 
 // L'URL de votre script a été insérée automatiquement.
-const GOOGLE_SCRIPT_URL: string = 'https://script.google.com/macros/s/AKfycbyeWr5IzYQHcaiUEe_JEgrUtudPYGQLhnkAiw9m5ANuqqomqBjQeDlUmMtOFspZoegb/exec';
+const GOOGLE_SCRIPT_URL: string = 'https://script.google.com/macros/s/AKfycbxr2iO9SWk4DEW36Of2OR4PeZCAgA_dupscwTT6twAsY2-c29vY9Xkgf678J76dtXYWgw/exec';
 
 
 async function callGoogleScript(payload: { [key: string]: any }): Promise<any> {
