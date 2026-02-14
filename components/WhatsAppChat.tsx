@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Logo from './Logo';
+import { submitBilan } from '../utils';
+import { PatientInfo } from '../types';
 
 interface Message {
     id: string;
@@ -18,44 +20,166 @@ interface WhatsAppChatProps {
     onBack: () => void;
 }
 
-const SYSTEM_PROMPT = `Vous êtes un assistant médical intelligent pour le cabinet de kinésithérapie KSLB.
-Votre rôle est de mener un entretien professionnel et bienveillant via WhatsApp pour remplir des questionnaires de santé.
+interface LLMParsed {
+    message: string;
+    phase: number;
+    question_num: number;
+    red_flags: string[];
+    collected: Record<string, any>;
+    progress: number;
+    done: boolean;
+    synthese?: string;
+}
 
-RÈGLES :
-1. Parlez en Français. Soyez poli, empathique et concis (ton WhatsApp).
-2. Posez UNE SEULE question à la fois.
-3. Commencez par l'identité (Nom, Prénom, Numéro de Sécurité Sociale).
-4. Enchaînez sur le motif de consultation (où avez-vous mal ?).
-5. Adaptez vos questions suivantes selon la zone douloureuse (si c'est le dos, posez des questions sur l'Oswestry).
-6. Si l'utilisateur donne une réponse floue, demandez des précisions avec tact.
-7. Ne donnez JAMAIS de diagnostic médical, rappelez que vous préparez le bilan pour le kiné.
-8. Utilisez quelques emojis pour rendre la conversation humaine mais professionnelle.`;
+const SYSTEM_PROMPT = `Vous êtes un assistant médical intelligent pour le cabinet de kinésithérapie KSLB.
+Votre rôle est de mener un entretien d'anamnèse professionnel et bienveillant pour recueillir les informations médicales du patient AVANT sa consultation.
+
+## RÈGLES ABSOLUES
+1. Parlez en Français. Ton chaleureux mais professionnel (style messagerie).
+2. Posez UNE SEULE question à la fois, jamais de rafale.
+3. Langage patient accessible — pas de jargon médical sauf si le patient l'utilise.
+4. Si le patient donne une réponse floue, demandez des précisions avec tact.
+5. Ne donnez JAMAIS de diagnostic. Vous préparez le dossier pour le kiné.
+6. Utilisez quelques emojis avec parcimonie pour rendre l'échange humain.
+7. Si vous détectez un RED FLAG, ne paniquez pas le patient mais notez-le.
+
+## STRUCTURE DE L'INTERROGATOIRE
+
+### PHASE 1 — IDENTITÉ + MOTIF DE CONSULTATION (questions 1 à 6)
+Commencez par demander le prénom et nom du patient, puis :
+
+Q1. "Quelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?" (zone corporelle + description libre)
+Q2. "Quand est-ce que ce problème est apparu, et dans quelles circonstances ?" (date + contexte : activité en cours, effort, sans raison...)
+Q3. Caractéristiques de la douleur — posez en 1-2 échanges :
+    - Est-ce que la douleur est présente le matin au réveil ? Besoin de "se dérouiller" ?
+    - Quel type de douleur ? (brûlure, tiraillement, élancement, décharge électrique, pesanteur...)
+    - Est-ce que la douleur se déplace ou irradie vers une autre zone ?
+Q4. "Combien de temps durent les crises ? À quelle fréquence reviennent-elles ? Comment ça évolue depuis le début ?"
+Q5. "Qu'est-ce qui aggrave votre douleur ? Et qu'est-ce qui la soulage ?"
+Q6. "Avez-vous d'autres symptômes associés ? Par exemple : fourmillements, engourdissements, faiblesse, gonflement, craquements... Et sur une échelle de 0 à 10, comment évaluez-vous votre douleur ?"
+
+### PHASE 2 — ANTÉCÉDENTS MÉDICAUX PAR SYSTÈME (questions 7 à 13)
+Pour chaque système, posez UNE question parapluie. Si NON → passez au suivant. Si OUI → creusez : quel problème, depuis quand, traitement actuel.
+
+Q7. CARDIOVASCULAIRE : "Avez-vous ou avez-vous eu des problèmes au niveau du cœur ou des vaisseaux ? Par exemple : tension élevée, maladie du cœur, infarctus, AVC, phlébite, problème de circulation..."
+Q8. RESPIRATOIRE : "Avez-vous ou avez-vous eu des problèmes respiratoires ? Par exemple : asthme, bronchite chronique, essoufflement, apnée du sommeil..."
+Q9. ENDOCRINIEN / MÉTABOLIQUE : "Avez-vous des problèmes de diabète, thyroïde, cholestérol, ou autre maladie du métabolisme ?"
+Q10. DIGESTIF : "Avez-vous des problèmes digestifs importants ? Ulcère, reflux, maladie du foie, maladie de l'intestin..."
+Q11. RÉNAL / URINAIRE : "Avez-vous des problèmes au niveau des reins ou des voies urinaires ?"
+Q12. URO-GYNÉCOLOGIQUE : Si homme → "Avez-vous des problèmes de prostate ?" Si femme → "Avez-vous des problèmes gynécologiques ?"
+Q13. FILET DE SÉCURITÉ : "Y a-t-il d'autres problèmes de santé que nous n'avons pas encore abordés ?"
+
+### PHASE 3 — CONTEXTE ET MODE DE VIE (questions 14 à 21)
+
+Q14. "Avez-vous déjà fait des examens d'imagerie pour ce problème ? Radio, scanner, IRM, échographie ?"
+Q15. "Avez-vous déjà essayé des traitements pour ce problème ? Kiné, ostéo, médicaments, infiltrations..."
+Q16. "Avez-vous déjà été opéré(e) ? Si oui, pour quoi ?"
+Q17. "Avez-vous eu des traumatismes importants ? Accidents, chutes graves..."
+Q18. "Prenez-vous des médicaments actuellement ? Et avez-vous des allergies connues ?"
+Q19. "Concernant votre mode de vie : fumez-vous ? Avez-vous des troubles du sommeil ? Vous sentez-vous stressé(e) ou anxieux(se) ?"
+Q20. "Quelle est votre activité professionnelle et ses contraintes physiques ? Pratiquez-vous un sport ?"
+Q21. "Pour terminer : quels sont vos objectifs et attentes vis-à-vis de la kinésithérapie ?"
+
+### CONCLUSION
+Après Q21, remerciez simplement le patient avec un message court et chaleureux du type : "Merci beaucoup pour vos réponses ! Votre dossier va être transmis à votre kinésithérapeute qui en prendra connaissance avant votre séance. À très bientôt ! 😊"
+NE FAITES PAS de récapitulatif visible, NE LISTEZ PAS les données collectées, N'AFFICHEZ PAS de JSON au patient. Juste un remerciement simple et humain.
+En revanche, remplissez bien le champ "synthese" dans votre JSON de réponse avec TOUTES les données collectées en texte structuré — c'est ce qui sera sauvegardé dans le dossier du praticien.
+
+## RED FLAGS À SURVEILLER
+Si mentionnés, notez-les mais ne paniquez pas le patient :
+- Douleur thoracique + essoufflement
+- Paresthésies périnéales / troubles sphinctériens (syndrome queue de cheval)
+- Perte de poids inexpliquée + douleur nocturne (suspicion néoplasique)
+- Fièvre + douleur articulaire (suspicion infectieuse)
+- Déficit neurologique brutal
+- Douleur de jambe + gonflement + chaleur (suspicion TVP)
+- Céphalée brutale "en coup de tonnerre"
+- Trauma + déformation
+
+## FORMAT DE RÉPONSE
+Répondez UNIQUEMENT en JSON valide, sans markdown ni backticks :
+{"message":"votre message au patient","phase":1,"question_num":1,"red_flags":[],"collected":{},"progress":5,"done":false}
+
+- message : votre texte au patient
+- phase : 1, 2 ou 3
+- question_num : numéro de question en cours (1-21)
+- red_flags : liste de red flags détectés (chaînes)
+- collected : objet avec les données recueillies mises à jour. Clés possibles : nom, prenom, numero_secu, motif, zone, date_apparition, circonstances, douleur_matin, derouillage, type_douleur, trajet_irradiation, duree_crises, frequence_crises, evolution, facteurs_aggravants, facteurs_soulageants, symptomes_associes, eva, cardiovasculaire, respiratoire, endocrinien, digestif, renal, uro_gyneco, autres_antecedents, imagerie, traitements_anterieurs, chirurgies, traumatismes, medicaments, allergies, tabac, sommeil, stress, profession, sport, objectifs
+- progress : pourcentage estimé (0-100)
+- done : true quand l'interrogatoire est terminé
+
+Quand done=true, ajoutez un champ "synthese" avec le résumé clinique complet en texte structuré.
+
+## DÉMARRAGE
+Premier message : présentez-vous brièvement et demandez le prénom et nom du patient.`;
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'qwen/qwen3-8b:free';
 
 const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: '1',
-            text: "Bonjour ! Je suis l'assistant numérique du cabinet KSLB. 👨‍⚕️\n\nJe suis là pour vous aider à remplir votre bilan de santé avant votre rendez-vous. Pour commencer, quel est votre prénom et votre nom ?",
-            sender: 'bot',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [phase, setPhase] = useState(0);
+    const [questionNum, setQuestionNum] = useState(0);
+    const [redFlags, setRedFlags] = useState<string[]>([]);
+    const [collectedData, setCollectedData] = useState<Record<string, any>>({});
+    const [isDone, setIsDone] = useState(false);
+    const [synthesis, setSynthesis] = useState<string | null>(null);
+    const [driveStatus, setDriveStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
     const scrollRef = useRef<HTMLDivElement>(null);
     const chatHistory = useRef<ChatMessage[]>([
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'assistant', content: "Bonjour ! Je suis l'assistant numérique du cabinet KSLB. 👨‍⚕️\n\nJe suis là pour vous aider à remplir votre bilan de santé avant votre rendez-vous. Pour commencer, quel est votre prénom et votre nom ?" }
     ]);
+
+    const phaseLabels: Record<number, string> = { 1: 'Motif & Symptômes', 2: 'Antécédents Médicaux', 3: 'Contexte & Mode de vie' };
 
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isTyping]);
+
+    const parseLLMResponse = (text: string): LLMParsed => {
+        try {
+            let s = text;
+            s = s.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            const fenceMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (fenceMatch) s = fenceMatch[1].trim();
+            const braceMatch = s.match(/\{[\s\S]*\}/);
+            if (braceMatch) s = braceMatch[0];
+            return JSON.parse(s);
+        } catch {
+            const cleanText = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            return {
+                message: cleanText,
+                phase: phase,
+                question_num: questionNum,
+                red_flags: [],
+                collected: {},
+                progress: progress,
+                done: false,
+            };
+        }
+    };
+
+    const applyResponse = (parsed: LLMParsed): string => {
+        if (parsed.phase) setPhase(parsed.phase);
+        if (parsed.question_num) setQuestionNum(parsed.question_num);
+        if (parsed.progress != null) setProgress(parsed.progress);
+        if (parsed.red_flags?.length) {
+            setRedFlags(prev => [...new Set([...prev, ...parsed.red_flags])]);
+        }
+        if (parsed.collected && Object.keys(parsed.collected).length > 0) {
+            setCollectedData(prev => ({ ...prev, ...parsed.collected }));
+        }
+        if (parsed.done) {
+            setIsDone(true);
+            setSynthesis(parsed.synthese || 'Anamnèse complète');
+        }
+        return parsed.message || '';
+    };
 
     const sendToLLM = async (userMessage: string): Promise<string> => {
         chatHistory.current.push({ role: 'user', content: userMessage });
@@ -69,7 +193,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
             body: JSON.stringify({
                 model: MODEL,
                 messages: chatHistory.current,
-                max_tokens: 500,
+                max_tokens: 1024,
                 temperature: 0.7,
             }),
         });
@@ -82,17 +206,103 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
 
         const data = await response.json();
         let assistantText = data.choices?.[0]?.message?.content || "Désolé, je n'ai pas pu générer de réponse.";
-
-        // Qwen3 peut inclure des balises <think>...</think> pour son raisonnement interne - on les retire
-        assistantText = assistantText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-
         chatHistory.current.push({ role: 'assistant', content: assistantText });
 
-        return assistantText;
+        const parsed = parseLLMResponse(assistantText);
+        return applyResponse(parsed);
     };
 
+    // Initial greeting
+    useEffect(() => {
+        (async () => {
+            setIsTyping(true);
+            try {
+                const botText = await sendToLLM("Bonjour, je suis prêt pour le questionnaire médical.");
+                setMessages([{
+                    id: '1',
+                    text: botText,
+                    sender: 'bot',
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }]);
+            } catch {
+                setMessages([{
+                    id: '1',
+                    text: "Bonjour ! Je suis l'assistant numérique du cabinet KSLB. 👨‍⚕️\n\nJe suis là pour vous aider à remplir votre bilan de santé avant votre rendez-vous. Pour commencer, quel est votre prénom et votre nom ?",
+                    sender: 'bot',
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }]);
+            }
+            setIsTyping(false);
+        })();
+    }, []);
+
+    // Auto-submit to Drive when done
+    useEffect(() => {
+        if (!isDone || driveStatus !== 'idle' || !synthesis) return;
+
+        (async () => {
+            setDriveStatus('sending');
+            try {
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const dateFr = now.toLocaleDateString('fr-FR');
+                const nom = (collectedData.nom || 'INCONNU').toUpperCase();
+                const prenom = collectedData.prenom || 'Inconnu';
+                const nss = collectedData.numero_secu || '000';
+                const patientFolder = `${nom}_${prenom}_${nss}`;
+                const basePath = `APP BILANS/Patients Data/${patientFolder}`;
+                const subFolder = `Tronc commun_${nss}`;
+                const filename = `${nom}_${prenom}_${dateStr}_Anamnese_Chat_${nss}.txt`;
+                const filePath = `${basePath}/${subFolder}/${filename}`;
+
+                const content = [
+                    `ANAMNÈSE CONVERSATIONNELLE — ${nom} ${prenom}`,
+                    `Date : ${dateFr} à ${now.toLocaleTimeString('fr-FR')}`,
+                    `Mode : Questionnaire LLM adaptatif (KSLB)`,
+                    ``,
+                    `═══════════════════════════════════════`,
+                    `SYNTHÈSE CLINIQUE`,
+                    `═══════════════════════════════════════`,
+                    ``,
+                    synthesis,
+                    ``,
+                    `═══════════════════════════════════════`,
+                    `DONNÉES STRUCTURÉES (JSON)`,
+                    `═══════════════════════════════════════`,
+                    ``,
+                    JSON.stringify(collectedData, null, 2),
+                    ``,
+                    redFlags.length > 0 ? `⚠️ RED FLAGS DÉTECTÉS : ${redFlags.join(', ')}` : 'Aucun red flag détecté.',
+                    ``,
+                    `═══════════════════════════════════════`,
+                    `CONVERSATION COMPLÈTE`,
+                    `═══════════════════════════════════════`,
+                    ``,
+                    ...messages.map(m => `[${m.timestamp}] ${m.sender === 'user' ? 'PATIENT' : 'ASSISTANT'} : ${m.text}`),
+                ].join('\n');
+
+                const patientInfo: PatientInfo = {
+                    nom,
+                    prenom,
+                    numeroSecuriteSociale: nss,
+                    date: dateFr,
+                };
+
+                await submitBilan({
+                    patientInfo,
+                    filesToCreate: [{ path: filePath, content }],
+                });
+
+                setDriveStatus('success');
+            } catch (err) {
+                console.error('Drive submission error:', err);
+                setDriveStatus('error');
+            }
+        })();
+    }, [isDone, driveStatus, synthesis]);
+
     const handleSend = async () => {
-        if (!inputValue.trim()) return;
+        if (!inputValue.trim() || isTyping) return;
 
         const userMsg: Message = {
             id: Date.now().toString(),
@@ -131,7 +341,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
 
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] w-full max-w-2xl mx-auto border-x bg-white shadow-2xl overflow-hidden animate-in fade-in duration-500">
-            {/* Header style WhatsApp */}
+            {/* Header */}
             <div className="bg-[#075E54] p-4 flex items-center gap-3 text-white">
                 <button onClick={onBack} className="p-1 hover:bg-white/10 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -141,11 +351,44 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden">
                     <Logo className="w-8 h-8" />
                 </div>
-                <div>
+                <div className="flex-1">
                     <h3 className="font-bold text-sm">Assistant KSLB</h3>
-                    <p className="text-[10px] text-green-200">En ligne • Qwen3</p>
+                    <p className="text-[10px] text-green-200">
+                        {isTyping ? 'écrit...' : isDone ? '✅ Anamnèse terminée' : `En ligne • Q${questionNum}/21`}
+                    </p>
                 </div>
             </div>
+
+            {/* Progress Bar */}
+            <div className="h-[3px] bg-[#0A3D2E]">
+                <div
+                    className="h-full bg-[#25D366] transition-all duration-700 ease-out"
+                    style={{ width: `${progress}%`, boxShadow: '0 0 8px rgba(37,211,102,0.5)' }}
+                />
+            </div>
+
+            {/* Phase Indicator */}
+            {phase > 0 && (
+                <div className="py-1.5 px-4 bg-gray-50 text-center border-b">
+                    <span className={`text-[10px] font-bold px-3 py-0.5 rounded-full ${
+                        phase === 1 ? 'text-green-600 bg-green-50' :
+                        phase === 2 ? 'text-orange-500 bg-orange-50' :
+                        'text-blue-500 bg-blue-50'
+                    }`}>
+                        Phase {phase}/3 — {phaseLabels[phase]} • {progress}%
+                    </span>
+                </div>
+            )}
+
+            {/* Red Flags */}
+            {redFlags.length > 0 && (
+                <div className="mx-3 mt-2 p-2 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-[11px] font-bold text-red-700">⚠️ Red Flags détectés</p>
+                    {redFlags.map((f, i) => (
+                        <p key={i} className="text-[11px] text-red-600">• {f}</p>
+                    ))}
+                </div>
+            )}
 
             {/* Chat Body */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 wa-chat-bg flex flex-col gap-3">
@@ -171,19 +414,38 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
                 )}
             </div>
 
-            {/* Input Area */}
+            {/* Drive Status */}
+            {isDone && (
+                <div className={`py-1.5 px-4 text-center border-t ${
+                    driveStatus === 'success' ? 'bg-green-50' :
+                    driveStatus === 'error' ? 'bg-red-50' : 'bg-gray-50'
+                }`}>
+                    <span className={`text-[11px] font-medium ${
+                        driveStatus === 'success' ? 'text-green-700' :
+                        driveStatus === 'error' ? 'text-red-700' : 'text-gray-500'
+                    }`}>
+                        {driveStatus === 'idle' && '✅ Anamnèse complète'}
+                        {driveStatus === 'sending' && '📤 Sauvegarde en cours...'}
+                        {driveStatus === 'success' && '✅ Dossier sauvegardé'}
+                        {driveStatus === 'error' && '❌ Erreur de sauvegarde — contactez le cabinet'}
+                    </span>
+                </div>
+            )}
+
+            {/* Input */}
             <div className="p-3 bg-[#F0F0F0] flex items-center gap-2">
                 <input
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="Tapez un message..."
+                    placeholder={isDone ? "Anamnèse terminée" : "Tapez un message..."}
                     className="flex-1 bg-white p-3 rounded-full text-sm outline-none shadow-inner border border-gray-200 focus:ring-1 focus:ring-green-400"
+                    disabled={isDone}
                 />
                 <button
                     onClick={handleSend}
-                    disabled={!inputValue.trim() || isTyping}
+                    disabled={!inputValue.trim() || isTyping || isDone}
                     className="w-11 h-11 bg-[#075E54] text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 rotate-45" viewBox="0 0 20 20" fill="currentColor">
