@@ -565,6 +565,13 @@ function AppContent() {
         setView('viewBilan');
     };
 
+    const patientInfo: PatientInfo = currentPatient ? {
+        nom: currentPatient.account.nom,
+        prenom: currentPatient.account.prenom,
+        numeroSecuriteSociale: currentPatient.account.numeroSecuriteSociale,
+        date: new Date().toLocaleDateString('fr-FR'),
+    } : { nom: '', prenom: '', numeroSecuriteSociale: '', date: '' };
+
     const renderView = () => {
         switch (view) {
             case 'chat':
