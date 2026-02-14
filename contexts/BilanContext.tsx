@@ -178,7 +178,8 @@ export const allStepDetails: Record<string, { title: string }> = {
     summary: { title: 'Resume' },
 };
 
-const initialCommonSteps: Step[] = ['medical1', 'medical2', 'medical3', 'objectifs', 'had', 'amplitudes'];
+const initialCommonSteps: Step[] = ['medical1', 'medical2', 'medical3', 'had'];
+// Désactivés (pas adaptés) : 'objectifs', 'amplitudes'
 const finalCommonSteps: Step[] = ['fabq', 'pcs', 'csi', 'wpai'];
 
 const lumbarSteps: Step[] = ['oswestry', 'quebec', 'rolandmorris'];
