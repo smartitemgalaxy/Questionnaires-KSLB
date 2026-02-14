@@ -114,7 +114,7 @@ Quand done=true, ajoutez un champ "synthese" avec le résumé clinique complet e
 Premier message : présentez-vous brièvement et demandez le prénom et nom du patient.`;
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = 'qwen/qwen3-8b:free';
+const MODEL = 'mistralai/mistral-small-3.1-24b-instruct:free';
 
 const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
     const [messages, setMessages] = useState<Message[]>([]);
