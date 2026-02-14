@@ -568,7 +568,7 @@ function AppContent() {
     const renderView = () => {
         switch (view) {
             case 'chat':
-                return <WhatsAppChat onBack={() => setView('dashboard')} />;
+                return <WhatsAppChat onBack={() => setView('dashboard')} patientInfo={patientInfo} />;
             case 'viewBilan':
                 return viewingBilan ? (
                     <BilanSummaryViewer bilan={viewingBilan} onBack={() => { setViewingBilan(null); setView('dashboard'); }} />

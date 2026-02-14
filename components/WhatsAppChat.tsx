@@ -18,6 +18,7 @@ interface ChatMessage {
 
 interface WhatsAppChatProps {
     onBack: () => void;
+    patientInfo: PatientInfo;
 }
 
 interface LLMParsed {
@@ -31,8 +32,15 @@ interface LLMParsed {
     synthese?: string;
 }
 
-const SYSTEM_PROMPT = `Vous êtes un assistant médical intelligent pour le cabinet de kinésithérapie KSLB.
+const getSystemPrompt = (pi: PatientInfo) => `Vous êtes un assistant médical intelligent pour le cabinet de kinésithérapie KSLB.
 Votre rôle est de mener un entretien d'anamnèse professionnel et bienveillant pour recueillir les informations médicales du patient AVANT sa consultation.
+
+## PATIENT IDENTIFIÉ
+Le patient est déjà connecté et identifié :
+- Prénom : ${pi.prenom}
+- Nom : ${pi.nom}
+- N° Sécurité Sociale : ${pi.numeroSecuriteSociale}
+NE DEMANDEZ PAS son nom, prénom ou numéro de sécu. Ces informations sont déjà enregistrées.
 
 ## RÈGLES ABSOLUES
 1. Parlez en Français. Ton chaleureux mais professionnel (style messagerie).
@@ -45,8 +53,8 @@ Votre rôle est de mener un entretien d'anamnèse professionnel et bienveillant 
 
 ## STRUCTURE DE L'INTERROGATOIRE
 
-### PHASE 1 — IDENTITÉ + MOTIF DE CONSULTATION (questions 1 à 6)
-Commencez par demander le prénom et nom du patient, puis :
+### PHASE 1 — MOTIF DE CONSULTATION (questions 1 à 6)
+Commencez DIRECTEMENT par Q1 — le patient est déjà identifié.
 
 Q1. "Quelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?" (zone corporelle + description libre)
 Q2. "Quand est-ce que ce problème est apparu, et dans quelles circonstances ?" (date + contexte : activité en cours, effort, sans raison...)
@@ -104,19 +112,19 @@ Répondez UNIQUEMENT en JSON valide, sans markdown ni backticks :
 - phase : 1, 2 ou 3
 - question_num : numéro de question en cours (1-21)
 - red_flags : liste de red flags détectés (chaînes)
-- collected : objet avec les données recueillies mises à jour. Clés possibles : nom, prenom, numero_secu, motif, zone, date_apparition, circonstances, douleur_matin, derouillage, type_douleur, trajet_irradiation, duree_crises, frequence_crises, evolution, facteurs_aggravants, facteurs_soulageants, symptomes_associes, eva, cardiovasculaire, respiratoire, endocrinien, digestif, renal, uro_gyneco, autres_antecedents, imagerie, traitements_anterieurs, chirurgies, traumatismes, medicaments, allergies, tabac, sommeil, stress, profession, sport, objectifs
+- collected : objet avec les données recueillies mises à jour. Clés possibles : motif, zone, date_apparition, circonstances, douleur_matin, derouillage, type_douleur, trajet_irradiation, duree_crises, frequence_crises, evolution, facteurs_aggravants, facteurs_soulageants, symptomes_associes, eva, cardiovasculaire, respiratoire, endocrinien, digestif, renal, uro_gyneco, autres_antecedents, imagerie, traitements_anterieurs, chirurgies, traumatismes, medicaments, allergies, tabac, sommeil, stress, profession, sport, objectifs
 - progress : pourcentage estimé (0-100)
 - done : true quand l'interrogatoire est terminé
 
 Quand done=true, ajoutez un champ "synthese" avec le résumé clinique complet en texte structuré.
 
 ## DÉMARRAGE
-Premier message : présentez-vous brièvement et demandez le prénom et nom du patient.`;
+Premier message : saluez ${pi.prenom} par son prénom et posez directement Q1 (motif de consultation). Ne demandez PAS le nom.`;
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'mistralai/mistral-small-3.1-24b-instruct:free';
 
-const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
+const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -130,7 +138,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
     const [driveStatus, setDriveStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
     const scrollRef = useRef<HTMLDivElement>(null);
     const chatHistory = useRef<ChatMessage[]>([
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: getSystemPrompt(patientInfo) },
     ]);
 
     const phaseLabels: Record<number, string> = { 1: 'Motif & Symptômes', 2: 'Antécédents Médicaux', 3: 'Contexte & Mode de vie' };
@@ -227,7 +235,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
             } catch {
                 setMessages([{
                     id: '1',
-                    text: "Bonjour ! Je suis l'assistant numérique du cabinet KSLB. 👨‍⚕️\n\nJe suis là pour vous aider à remplir votre bilan de santé avant votre rendez-vous. Pour commencer, quel est votre prénom et votre nom ?",
+                    text: `Bonjour ${patientInfo.prenom} ! 👋 Je suis l'assistant numérique du cabinet KSLB.\n\nJe suis là pour préparer votre bilan de santé avant votre rendez-vous. Pour commencer, quelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?`,
                     sender: 'bot',
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }]);
@@ -246,9 +254,9 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
                 const now = new Date();
                 const dateStr = now.toISOString().split('T')[0];
                 const dateFr = now.toLocaleDateString('fr-FR');
-                const nom = (collectedData.nom || 'INCONNU').toUpperCase();
-                const prenom = collectedData.prenom || 'Inconnu';
-                const nss = collectedData.numero_secu || '000';
+                const nom = patientInfo.nom.toUpperCase();
+                const prenom = patientInfo.prenom;
+                const nss = patientInfo.numeroSecuriteSociale || '000';
                 const patientFolder = `${nom}_${prenom}_${nss}`;
                 const basePath = `APP BILANS/Patients Data/${patientFolder}`;
                 const subFolder = `Tronc commun_${nss}`;
@@ -281,15 +289,8 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack }) => {
                     ...messages.map(m => `[${m.timestamp}] ${m.sender === 'user' ? 'PATIENT' : 'ASSISTANT'} : ${m.text}`),
                 ].join('\n');
 
-                const patientInfo: PatientInfo = {
-                    nom,
-                    prenom,
-                    numeroSecuriteSociale: nss,
-                    date: dateFr,
-                };
-
                 await submitBilan({
-                    patientInfo,
+                    patientInfo: { ...patientInfo, date: dateFr },
                     filesToCreate: [{ path: filePath, content }],
                 });
 
