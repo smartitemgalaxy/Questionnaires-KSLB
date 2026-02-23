@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Logo from './Logo';
 import { submitBilan } from '../utils';
 import { PatientInfo } from '../types';
+import { parseLLMResponse, type LLMParsed } from '@/lib/parseLLMResponse';
 
 interface Message {
     id: string;
@@ -21,17 +22,6 @@ interface WhatsAppChatProps {
     patientInfo: PatientInfo;
 }
 
-interface LLMParsed {
-    message: string;
-    phase: number;
-    question_num: number;
-    red_flags: string[];
-    collected: Record<string, any>;
-    progress: number;
-    done: boolean;
-    synthese?: string;
-}
-
 const getSystemPrompt = (pi: PatientInfo) => `Vous êtes un assistant médical intelligent pour le cabinet de kinésithérapie KSLB.
 Votre rôle est de mener un entretien d'anamnèse professionnel et bienveillant pour recueillir les informations médicales du patient AVANT sa consultation.
 
@@ -39,8 +29,7 @@ Votre rôle est de mener un entretien d'anamnèse professionnel et bienveillant 
 Le patient est déjà connecté et identifié :
 - Prénom : ${pi.prenom}
 - Nom : ${pi.nom}
-- N° Sécurité Sociale : ${pi.numeroSecuriteSociale}
-NE DEMANDEZ PAS son nom, prénom ou numéro de sécu. Ces informations sont déjà enregistrées.
+NE DEMANDEZ PAS son nom ou prénom. Ces informations sont déjà enregistrées.
 
 ## RÈGLES ABSOLUES
 1. Parlez en Français. Ton chaleureux mais professionnel (style messagerie).
@@ -121,21 +110,37 @@ Quand done=true, ajoutez un champ "synthese" avec le résumé clinique complet e
 ## DÉMARRAGE
 Premier message : saluez ${pi.prenom} par son prénom et posez directement Q1 (motif de consultation). Ne demandez PAS le nom.`;
 
+// ⚠️ ATTENTION : La clé API OpenRouter est injectée côté client par Vite (process.env).
+// Elle est visible dans le bundle JS déployé. C'est acceptable pour une clé free-tier
+// mais NE PAS utiliser de clé payante ici. Pour sécuriser : migrer vers un backend proxy.
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = 'mistralai/mistral-small-3.1-24b-instruct:free';
+
+// Ollama local — fallback ultime, jamais rate-limited
+const OLLAMA_URL = 'http://localhost:11434/v1/chat/completions';
+const OLLAMA_MODEL = 'qwen3:8b';
+
+// Fallback chain : si le 1er modèle retourne 429/erreur, on essaie le suivant
+const MODEL_CHAIN = [
+    'nvidia/nemotron-nano-9b-v2:free',   // Premier choix — le plus fiable
+    'google/gemma-3-12b-it:free',        // Bon francais, parfois rate-limited
+    'google/gemma-3-4b-it:free',         // Backup leger
+    'mistralai/mistral-small-3.1-24b-instruct:free', // Dernier recours cloud
+];
 
 const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [progress, setProgress] = useState(0);
-    const [phase, setPhase] = useState(0);
-    const [questionNum, setQuestionNum] = useState(0);
+    const [progress, setProgress] = useState(5);   // Visible dès le début (pas 0%)
+    const [phase, setPhase] = useState(1);          // Phase 1 dès le départ
+    const [questionNum, setQuestionNum] = useState(1); // Q1/21 (pas Q0/21)
     const [redFlags, setRedFlags] = useState<string[]>([]);
     const [collectedData, setCollectedData] = useState<Record<string, any>>({});
     const [isDone, setIsDone] = useState(false);
     const [synthesis, setSynthesis] = useState<string | null>(null);
     const [driveStatus, setDriveStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+    const [isRetrying, setIsRetrying] = useState(false); // Rate-limit retry indicator
+    const [isOffline, setIsOffline] = useState(!navigator.onLine); // #M27
     const scrollRef = useRef<HTMLDivElement>(null);
     const chatHistory = useRef<ChatMessage[]>([
         { role: 'system', content: getSystemPrompt(patientInfo) },
@@ -143,34 +148,23 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
 
     const phaseLabels: Record<number, string> = { 1: 'Motif & Symptômes', 2: 'Antécédents Médicaux', 3: 'Contexte & Mode de vie' };
 
+    // #M27 — Network offline detection
+    useEffect(() => {
+        const goOffline = () => setIsOffline(true);
+        const goOnline = () => setIsOffline(false);
+        window.addEventListener('offline', goOffline);
+        window.addEventListener('online', goOnline);
+        return () => {
+            window.removeEventListener('offline', goOffline);
+            window.removeEventListener('online', goOnline);
+        };
+    }, []);
+
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isTyping]);
-
-    const parseLLMResponse = (text: string): LLMParsed => {
-        try {
-            let s = text;
-            s = s.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-            const fenceMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/);
-            if (fenceMatch) s = fenceMatch[1].trim();
-            const braceMatch = s.match(/\{[\s\S]*\}/);
-            if (braceMatch) s = braceMatch[0];
-            return JSON.parse(s);
-        } catch {
-            const cleanText = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-            return {
-                message: cleanText,
-                phase: phase,
-                question_num: questionNum,
-                red_flags: [],
-                collected: {},
-                progress: progress,
-                done: false,
-            };
-        }
-    };
 
     const applyResponse = (parsed: LLMParsed): string => {
         if (parsed.phase) setPhase(parsed.phase);
@@ -186,38 +180,136 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
             setIsDone(true);
             setSynthesis(parsed.synthese || 'Anamnèse complète');
         }
-        return parsed.message || '';
+        return parsed.message?.trim() || 'Pouvez-vous preciser votre reponse ?';
     };
 
     const sendToLLM = async (userMessage: string): Promise<string> => {
         chatHistory.current.push({ role: 'user', content: userMessage });
 
-        const response = await fetch(OPENROUTER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            },
-            body: JSON.stringify({
-                model: MODEL,
-                messages: chatHistory.current,
-                max_tokens: 1024,
-                temperature: 0.7,
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.text();
-            console.error('OpenRouter error:', response.status, errorData);
-            throw new Error(`Erreur API (${response.status})`);
+        // Limit chat history to prevent unbounded memory growth (#M26)
+        const MAX_HISTORY = 50;
+        if (chatHistory.current.length > MAX_HISTORY) {
+            const systemMsg = chatHistory.current[0];
+            chatHistory.current = [systemMsg, ...chatHistory.current.slice(-(MAX_HISTORY - 1))];
         }
 
-        const data = await response.json();
-        let assistantText = data.choices?.[0]?.message?.content || "Désolé, je n'ai pas pu générer de réponse.";
-        chatHistory.current.push({ role: 'assistant', content: assistantText });
+        const MAX_RETRIES = 2;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            // Try each model in the fallback chain until one works
+            let lastError: Error | null = null;
+            for (const model of MODEL_CHAIN) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-        const parsed = parseLLMResponse(assistantText);
-        return applyResponse(parsed);
+                try {
+                    const response = await fetch(OPENROUTER_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                        },
+                        body: JSON.stringify({
+                            model,
+                            messages: chatHistory.current,
+                            max_tokens: 1024,
+                            temperature: 0.7,
+                        }),
+                        signal: controller.signal,
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        const errorData = await response.text();
+                        console.warn(`[Fallback] ${model} → ${response.status}`, errorData);
+                        lastError = new Error(`Erreur API (${response.status})`);
+                        continue; // Try next model
+                    }
+
+                    const data = await response.json();
+                    const assistantText = data.choices?.[0]?.message?.content?.trim();
+
+                    // Empty response = try next model instead of showing error
+                    if (!assistantText) {
+                        console.warn(`[Fallback] ${model} → réponse vide`);
+                        lastError = new Error('Réponse vide du modèle');
+                        continue;
+                    }
+
+                    chatHistory.current.push({ role: 'assistant', content: assistantText });
+                    console.info(`[LLM] Réponse via ${model} (attempt ${attempt + 1})`);
+                    const parsed = parseLLMResponse(assistantText, { phase, questionNum, progress });
+                    return applyResponse(parsed);
+                } catch (err: any) {
+                    clearTimeout(timeoutId);
+                    if (err.name === 'AbortError') {
+                        console.warn(`[Fallback] ${model} → timeout`);
+                        lastError = new Error('Le serveur met trop de temps à répondre.');
+                        continue; // Try next model
+                    }
+                    lastError = err;
+                    continue;
+                }
+            }
+
+            // All cloud models failed — try Ollama local before retrying
+            try {
+                const ollamaController = new AbortController();
+                const ollamaTimeout = setTimeout(() => ollamaController.abort(), 30000); // 30s for local model
+                const ollamaRes = await fetch(OLLAMA_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: OLLAMA_MODEL,
+                        messages: chatHistory.current,
+                        max_tokens: 1024,
+                        temperature: 0.7,
+                    }),
+                    signal: ollamaController.signal,
+                });
+                clearTimeout(ollamaTimeout);
+
+                if (ollamaRes.ok) {
+                    const ollamaData = await ollamaRes.json();
+                    const ollamaText = ollamaData.choices?.[0]?.message?.content?.trim();
+                    if (ollamaText) {
+                        chatHistory.current.push({ role: 'assistant', content: ollamaText });
+                        console.info(`[LLM] Réponse via Ollama/${OLLAMA_MODEL} (attempt ${attempt + 1})`);
+                        const parsed = parseLLMResponse(ollamaText, { phase, questionNum, progress });
+                        return applyResponse(parsed);
+                    }
+                }
+                console.warn(`[Fallback] Ollama/${OLLAMA_MODEL} → ${ollamaRes.ok ? 'réponse vide' : ollamaRes.status}`);
+            } catch (ollamaErr: any) {
+                console.warn(`[Fallback] Ollama/${OLLAMA_MODEL} → ${ollamaErr.name === 'AbortError' ? 'timeout' : 'indisponible'}`);
+            }
+
+            // Ollama also failed — retry with backoff
+            if (attempt < MAX_RETRIES) {
+                // Remove dangling user message to keep history clean for retry
+                // (prevents Gemma 400 errors from incomplete user/assistant pairs)
+                const lastMsg = chatHistory.current[chatHistory.current.length - 1];
+                if (lastMsg?.role === 'user') {
+                    chatHistory.current.pop();
+                }
+                const backoffMs = 10000 * (attempt + 1); // 10s, then 20s
+                console.warn(`[Retry] All models failed, retrying in ${backoffMs / 1000}s (attempt ${attempt + 2}/${MAX_RETRIES + 1})...`);
+                setIsRetrying(true);
+                await new Promise(r => setTimeout(r, backoffMs));
+                setIsRetrying(false);
+                // Re-add user message for retry
+                chatHistory.current.push({ role: 'user', content: userMessage });
+            } else {
+                // Final failure — clean up dangling user message
+                const lastMsg = chatHistory.current[chatHistory.current.length - 1];
+                if (lastMsg?.role === 'user') {
+                    chatHistory.current.pop();
+                }
+                throw lastError || new Error('Tous les modèles sont indisponibles.');
+            }
+        }
+
+        throw new Error('Tous les modèles sont indisponibles.');
     };
 
     // Initial greeting
@@ -233,12 +325,22 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }]);
             } catch {
-                setMessages([{
-                    id: '1',
-                    text: `Bonjour ${patientInfo.prenom} ! 👋 Je suis l'assistant numérique du cabinet KSLB.\n\nJe suis là pour préparer votre bilan de santé avant votre rendez-vous. Pour commencer, quelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?`,
-                    sender: 'bot',
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                }]);
+                // #M22 — Separate error message from welcome (2 distinct bubbles)
+                const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                setMessages([
+                    {
+                        id: 'err-init',
+                        text: `⚠️ L'assistant IA est temporairement indisponible. Vous pouvez quand même commencer.`,
+                        sender: 'bot',
+                        timestamp: ts,
+                    },
+                    {
+                        id: 'welcome-fallback',
+                        text: `Bonjour ${patientInfo.prenom} ! 😊\n\nQuelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?`,
+                        sender: 'bot',
+                        timestamp: ts,
+                    },
+                ]);
             }
             setIsTyping(false);
         })();
@@ -303,7 +405,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
     }, [isDone, driveStatus, synthesis]);
 
     const handleSend = async () => {
-        if (!inputValue.trim() || isTyping) return;
+        if (!inputValue.trim() || isTyping || isDone) return;
 
         const userMsg: Message = {
             id: Date.now().toString(),
@@ -341,10 +443,10 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-64px)] w-full max-w-2xl mx-auto border-x bg-white shadow-2xl overflow-hidden animate-in fade-in duration-500">
+        <div className="flex flex-col h-[calc(100dvh-56px)] sm:h-[calc(100dvh-72px)] w-full max-w-2xl mx-auto border-x bg-white shadow-2xl overflow-hidden animate-in fade-in duration-500">
             {/* Header */}
             <div className="bg-[#075E54] p-4 flex items-center gap-3 text-white">
-                <button onClick={onBack} className="p-1 hover:bg-white/10 rounded-full">
+                <button onClick={onBack} className="p-1 hover:bg-white/10 rounded-full" aria-label="Retour">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                     </svg>
@@ -355,10 +457,25 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                 <div className="flex-1">
                     <h3 className="font-bold text-sm">Assistant KSLB</h3>
                     <p className="text-[10px] text-green-200">
-                        {isTyping ? 'écrit...' : isDone ? '✅ Anamnèse terminée' : `En ligne • Q${questionNum}/21`}
+                        {isRetrying ? 'un moment de réflexion...' : isTyping ? 'écrit...' : isDone ? '✅ Anamnèse terminée' : `En ligne • Q${questionNum}/21`}
                     </p>
                 </div>
             </div>
+
+            {/* #C01 — API key warning banner */}
+            {!process.env.OPENROUTER_API_KEY && (
+                <div className="bg-amber-100 border-b border-amber-300 px-4 py-2 text-amber-800 text-xs font-medium" role="alert">
+                    ⚠️ Clé API OpenRouter manquante. Le chat ne fonctionnera pas. Configurez <code className="bg-amber-200 px-1 rounded">OPENROUTER_API_KEY</code> dans le fichier <code className="bg-amber-200 px-1 rounded">.env</code>.
+                </div>
+            )}
+
+            {/* #M27 — Offline detection banner */}
+            {isOffline && (
+                <div className="bg-red-100 border-b border-red-300 px-4 py-2 text-red-800 text-xs font-medium flex items-center gap-2" role="alert">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    Connexion internet perdue. Les messages ne peuvent pas être envoyés.
+                </div>
+            )}
 
             {/* Progress Bar */}
             <div className="h-[3px] bg-[#0A3D2E]">
@@ -381,22 +498,14 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                 </div>
             )}
 
-            {/* Red Flags */}
-            {redFlags.length > 0 && (
-                <div className="mx-3 mt-2 p-2 rounded-lg bg-red-50 border border-red-200">
-                    <p className="text-[11px] font-bold text-red-700">⚠️ Red Flags détectés</p>
-                    {redFlags.map((f, i) => (
-                        <p key={i} className="text-[11px] text-red-600">• {f}</p>
-                    ))}
-                </div>
-            )}
+            {/* Red Flags — tracked internally but NOT shown to patient (RGPD #C14) */}
 
-            {/* Chat Body */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 wa-chat-bg flex flex-col gap-3">
+            {/* Chat Body — #C13 aria-live for screen readers */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 wa-chat-bg flex flex-col gap-3" role="log" aria-live="polite" aria-label="Conversation">
                 {messages.map((m) => (
                     <div
                         key={m.id}
-                        className={`max-w-[85%] rounded-lg p-3 shadow-sm relative text-sm animate-in zoom-in-95 duration-200 ${
+                        className={`max-w-[90%] sm:max-w-[85%] rounded-lg p-3 shadow-sm relative text-sm animate-in zoom-in-95 duration-200 ${
                             m.sender === 'bot'
                             ? 'bg-white self-start text-gray-800 rounded-tl-none'
                             : 'bg-[#DCF8C6] self-end text-gray-900 rounded-tr-none'
@@ -407,7 +516,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                     </div>
                 ))}
                 {isTyping && (
-                    <div className="bg-white self-start rounded-lg rounded-tl-none p-3 shadow-sm flex items-center gap-1">
+                    <div className="bg-white self-start rounded-lg rounded-tl-none p-3 shadow-sm flex items-center gap-1" role="status" aria-live="assertive" aria-label="L'assistant est en train d'écrire">
                         <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></span>
                         <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                         <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.4s]"></span>
@@ -428,7 +537,17 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                         {driveStatus === 'idle' && '✅ Anamnèse complète'}
                         {driveStatus === 'sending' && '📤 Sauvegarde en cours...'}
                         {driveStatus === 'success' && '✅ Dossier sauvegardé'}
-                        {driveStatus === 'error' && '❌ Erreur de sauvegarde — contactez le cabinet'}
+                        {driveStatus === 'error' && (
+                            <>
+                                ❌ Erreur de sauvegarde{' '}
+                                <button
+                                    onClick={() => setDriveStatus('idle')}
+                                    className="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-[10px] font-bold rounded hover:bg-red-200 transition-colors"
+                                >
+                                    Réessayer
+                                </button>
+                            </>
+                        )}
                     </span>
                 </div>
             )}
@@ -439,7 +558,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={isDone ? "Anamnèse terminée" : "Tapez un message..."}
                     className="flex-1 bg-white p-3 rounded-full text-sm outline-none shadow-inner border border-gray-200 focus:ring-1 focus:ring-green-400"
                     disabled={isDone}
@@ -455,9 +574,9 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                 </button>
             </div>
 
-            <div className="bg-white px-4 py-2 text-center border-t">
-                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
-                    Les données sont sécurisées et envoyées directement à votre praticien.
+            <div className="bg-white px-4 py-1.5 text-center border-t safe-bottom">
+                <p className="text-[9px] text-gray-400">
+                    🔒 Données sécurisées — envoyées directement à votre praticien
                 </p>
             </div>
         </div>
