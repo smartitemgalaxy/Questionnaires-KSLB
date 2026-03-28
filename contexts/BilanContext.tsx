@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState } from 'react';
 import {
     FABQAnswers, PCSAnswers, CSI_PartA_Answers, CSI_PartB_Answers,
     MedicalAnswers, OswestryAnswers, QuebecAnswers, RolandMorrisAnswers,
@@ -129,9 +129,7 @@ export function createInitialAnswers(): AllAnswersSnapshot {
 // ==================== Step Configuration ====================
 
 export const allStepDetails: Record<string, { title: string }> = {
-    medical1: { title: 'Medical (1/3)' },
-    medical2: { title: 'Medical (2/3)' },
-    medical3: { title: 'Medical (3/3)' },
+    medical: { title: 'Anamnese' },
     objectifs: { title: 'Objectifs' },
     had: { title: 'HAD' },
     amplitudes: { title: 'Amplitudes' },
@@ -178,7 +176,7 @@ export const allStepDetails: Record<string, { title: string }> = {
     summary: { title: 'Resume' },
 };
 
-const initialCommonSteps: Step[] = ['medical1', 'medical2', 'medical3', 'had'];
+const initialCommonSteps: Step[] = ['medical', 'had'];
 // Désactivés (pas adaptés) : 'objectifs', 'amplitudes'
 const finalCommonSteps: Step[] = ['fabq', 'pcs', 'csi', 'wpai'];
 
@@ -335,6 +333,7 @@ type BilanAction =
     | { type: 'START_NEW' }
     | { type: 'SET_STEP'; step: Step }
     | { type: 'UPDATE_ANSWERS'; formType: Step; data: any }
+    | { type: 'UPDATE_ANSWERS_AND_NEXT'; formType: Step; data: any } // #C08 — atomic save+navigate avoids stale closure
     | { type: 'UPDATE_STEPS'; steps: Step[]; psfs: { [zone: string]: PSFSAnswers } }
     | { type: 'RESTORE_SESSION'; session: InProgressSession }
     | { type: 'RESET' }
@@ -342,7 +341,7 @@ type BilanAction =
 
 function getInactiveState(): BilanState {
     return {
-        currentStep: 'medical1',
+        currentStep: 'medical',
         steps: [...initialCommonSteps, ...finalCommonSteps, 'summary'],
         answers: createInitialAnswers(),
         isDirty: false,
@@ -356,7 +355,7 @@ function bilanReducer(state: BilanState, action: BilanAction): BilanState {
     switch (action.type) {
         case 'START_NEW':
             return {
-                currentStep: 'medical1',
+                currentStep: 'medical',
                 steps: [...initialCommonSteps, ...finalCommonSteps, 'summary'],
                 answers: createInitialAnswers(),
                 isDirty: false,
@@ -383,9 +382,7 @@ function bilanReducer(state: BilanState, action: BilanAction): BilanState {
                         newAnswers.csiPartA = action.data.partA;
                         newAnswers.csiPartB = action.data.partB;
                         break;
-                    case 'medical1':
-                    case 'medical2':
-                    case 'medical3':
+                    case 'medical':
                         newAnswers.medical = { ...newAnswers.medical, ...action.data };
                         break;
                     case 'had': newAnswers.had = action.data; break;
@@ -433,6 +430,72 @@ function bilanReducer(state: BilanState, action: BilanAction): BilanState {
             return { ...state, answers: newAnswers, isDirty: true };
         }
 
+        // #C08 — Atomic save+navigate: computes next step from fresh state inside reducer
+        case 'UPDATE_ANSWERS_AND_NEXT': {
+            const newAns = { ...state.answers };
+            const ft2 = action.formType;
+
+            if (ft2.startsWith('psfs_')) {
+                const zone2 = ft2.replace('psfs_', '').replace(/_/g, ' ');
+                newAns.psfs = { ...newAns.psfs, [zone2]: action.data };
+            } else {
+                switch (ft2) {
+                    case 'fabq': newAns.fabq = action.data; break;
+                    case 'pcs': newAns.pcs = action.data; break;
+                    case 'csi':
+                        newAns.csiPartA = action.data.partA;
+                        newAns.csiPartB = action.data.partB;
+                        break;
+                    case 'medical':
+                        newAns.medical = { ...newAns.medical, ...action.data };
+                        break;
+                    case 'had': newAns.had = action.data; break;
+                    case 'amplitudes': newAns.amplitudes = action.data; break;
+                    case 'oswestry': newAns.oswestry = action.data; break;
+                    case 'quebec': newAns.quebec = action.data; break;
+                    case 'rolandmorris': newAns.rolandMorris = action.data; break;
+                    case 'ndi': newAns.ndi = action.data; break;
+                    case 'northwick': newAns.northwick = action.data; break;
+                    case 'copenhagen': newAns.copenhagen = action.data; break;
+                    case 'dash': newAns.dash = action.data; break;
+                    case 'oss': newAns.oss = action.data; break;
+                    case 'spadi': newAns.spadi = action.data; break;
+                    case 'vas': newAns.vas = action.data; break;
+                    case 'oswestryThoracic': newAns.oswestryThoracic = action.data; break;
+                    case 'ikdc': newAns.ikdc = action.data; break;
+                    case 'lysholm': newAns.lysholm = action.data; break;
+                    case 'koos': newAns.koos = action.data; break;
+                    case 'oes': newAns.oes = action.data; break;
+                    case 'prtee': newAns.prtee = action.data; break;
+                    case 'prwe': newAns.prwe = action.data; break;
+                    case 'mhq': newAns.mhq = action.data; break;
+                    case 'hoosps': newAns.hoosps = action.data; break;
+                    case 'harriship': newAns.harrisHipScore = action.data; break;
+                    case 'oxfordhip': newAns.oxfordHipScore = action.data; break;
+                    case 'hagos': newAns.hagos = action.data; break;
+                    case 'pfdi': newAns.pfdi = action.data; break;
+                    case 'iciq': newAns.iciq = action.data; break;
+                    case 'aofas': newAns.aofas = action.data; break;
+                    case 'fadi': newAns.fadi = action.data; break;
+                    case 'ffir': newAns.ffir = action.data; break;
+                    case 'fogq': newAns.fogq = action.data; break;
+                    case 'fes': newAns.fes = action.data; break;
+                    case 'fesi': newAns.fesi = action.data; break;
+                    case 'berg': newAns.berg = action.data; break;
+                    case 'lefs': newAns.lefs = action.data; break;
+                    case 'jfls': newAns.jfls = action.data; break;
+                    case 'tmd': newAns.tmd = action.data; break;
+                    case 'wpai': newAns.wpai = action.data; break;
+                    case 'objectifs': newAns.objectifs = action.data; break;
+                    case 'mmrc': newAns.mmrc = action.data; break;
+                    case 'sgrq': newAns.sgrq = action.data; break;
+                }
+            }
+            const idx = state.steps.indexOf(state.currentStep);
+            const nextStep = state.steps[idx + 1] || 'summary';
+            return { ...state, answers: newAns, currentStep: nextStep, isDirty: true };
+        }
+
         case 'UPDATE_STEPS':
             return {
                 ...state,
@@ -467,6 +530,7 @@ function bilanReducer(state: BilanState, action: BilanAction): BilanState {
 
 interface BilanContextValue {
     state: BilanState;
+    saveStatus: 'idle' | 'saving' | 'saved' | 'error'; // #M13 — auto-save visual feedback
     startNewBilan: () => void;
     resumeBilan: (session: InProgressSession) => void;
     goToNextStep: () => void;
@@ -474,7 +538,7 @@ interface BilanContextValue {
     skipToSummary: () => void;
     saveAnswers: (formType: Step, data: any) => void;
     saveAnswersAndNext: (formType: Step, data: any) => void;
-    saveMedical1AndNext: (data: any) => void;
+    saveMedicalAndNext: (data: any) => void;
     resetBilan: () => void;
     completeBilan: (patientInfo: PatientInfo) => void;
     setStep: (step: Step) => void;
@@ -486,22 +550,36 @@ export function BilanProvider({ children }: { children: React.ReactNode }) {
     const { currentPatient, refreshPatient } = useAuth();
     const [state, dispatch] = useReducer(bilanReducer, getInactiveState());
     const autoSaveTimerRef = useRef<number>();
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle'); // #M13
+    const saveStatusTimerRef = useRef<number>();
+    const navGuardRef = useRef(false); // #M14 — double-click prevention
 
-    // Auto-save
+    // Auto-save with visual feedback (#M13)
     useEffect(() => {
         if (!currentPatient || !state.isActive || !state.isDirty) return;
 
+        setSaveStatus('saving');
         window.clearTimeout(autoSaveTimerRef.current);
         autoSaveTimerRef.current = window.setTimeout(() => {
-            StorageService.saveInProgress(currentPatient.account.id, {
-                bilanId: state.bilanId,
-                startedAt: state.startedAt,
-                lastSavedAt: new Date().toISOString(),
-                currentStep: state.currentStep,
-                steps: state.steps,
-                answers: state.answers,
-            });
-            dispatch({ type: 'MARK_SAVED' });
+            try {
+                StorageService.saveInProgress(currentPatient.account.id, {
+                    bilanId: state.bilanId,
+                    startedAt: state.startedAt,
+                    lastSavedAt: new Date().toISOString(),
+                    currentStep: state.currentStep,
+                    steps: state.steps,
+                    answers: state.answers,
+                });
+                dispatch({ type: 'MARK_SAVED' });
+                setSaveStatus('saved');
+                // Revert to idle after 2s so the indicator fades
+                window.clearTimeout(saveStatusTimerRef.current);
+                saveStatusTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 2000);
+            } catch (err) {
+                // #C09 — Graceful degradation on QuotaExceededError or corrupt storage
+                console.warn('[KSLB] Auto-save failed:', err);
+                setSaveStatus('error');
+            }
         }, 500);
 
         return () => window.clearTimeout(autoSaveTimerRef.current);
@@ -533,10 +611,14 @@ export function BilanProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'RESTORE_SESSION', session });
     }, []);
 
+    // #M14 — Double-click prevention on navigation
     const goToNextStep = useCallback(() => {
+        if (navGuardRef.current) return;
+        navGuardRef.current = true;
         const idx = state.steps.indexOf(state.currentStep);
         const next = state.steps[idx + 1] || 'summary';
         dispatch({ type: 'SET_STEP', step: next });
+        requestAnimationFrame(() => { navGuardRef.current = false; });
     }, [state.steps, state.currentStep]);
 
     const goToPreviousStep = useCallback(() => {
@@ -554,23 +636,24 @@ export function BilanProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'UPDATE_ANSWERS', formType, data });
     }, []);
 
+    // #C08 — Atomic save+navigate: single dispatch avoids stale closure between two dispatches
+    // #M14 — Double-click prevention: ignore rapid successive calls
     const saveAnswersAndNext = useCallback((formType: Step, data: any) => {
-        dispatch({ type: 'UPDATE_ANSWERS', formType, data });
-        // Compute next step from current state (after update)
-        const idx = state.steps.indexOf(state.currentStep);
-        const next = state.steps[idx + 1] || 'summary';
-        dispatch({ type: 'SET_STEP', step: next });
-    }, [state.steps, state.currentStep]);
+        if (navGuardRef.current) return;
+        navGuardRef.current = true;
+        dispatch({ type: 'UPDATE_ANSWERS_AND_NEXT', formType, data });
+        requestAnimationFrame(() => { navGuardRef.current = false; });
+    }, []);
 
-    const saveMedical1AndNext = useCallback((data: any) => {
+    const saveMedicalAndNext = useCallback((data: any) => {
         // Update medical answers
-        dispatch({ type: 'UPDATE_ANSWERS', formType: 'medical1', data });
+        dispatch({ type: 'UPDATE_ANSWERS', formType: 'medical', data });
         // Recalculate steps based on the new medical data
         const updatedMedical = { ...state.answers.medical, ...data };
         const { steps: newSteps, psfs: newPsfs } = computeSteps(updatedMedical, state.answers.psfs);
         dispatch({ type: 'UPDATE_STEPS', steps: newSteps, psfs: newPsfs });
-        // Move to medical2
-        dispatch({ type: 'SET_STEP', step: 'medical2' });
+        // Move to next step (had)
+        dispatch({ type: 'SET_STEP', step: 'had' });
     }, [state.answers.medical, state.answers.psfs]);
 
     const resetBilan = useCallback(() => {
@@ -590,6 +673,7 @@ export function BilanProvider({ children }: { children: React.ReactNode }) {
             answers: state.answers,
         };
         StorageService.saveCompletedBilan(currentPatient.account.id, bilan);
+        StorageService.clearInProgress(currentPatient.account.id);
         dispatch({ type: 'RESET' });
         refreshPatient();
     }, [currentPatient, state.bilanId, state.steps, state.answers, refreshPatient]);
@@ -601,6 +685,7 @@ export function BilanProvider({ children }: { children: React.ReactNode }) {
     return (
         <BilanContext.Provider value={{
             state,
+            saveStatus,
             startNewBilan,
             resumeBilan,
             goToNextStep,
@@ -608,7 +693,7 @@ export function BilanProvider({ children }: { children: React.ReactNode }) {
             skipToSummary,
             saveAnswers,
             saveAnswersAndNext,
-            saveMedical1AndNext,
+            saveMedicalAndNext,
             resetBilan,
             completeBilan,
             setStep,

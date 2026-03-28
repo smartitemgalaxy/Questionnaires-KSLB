@@ -1119,86 +1119,30 @@ export const SGRQ_QUESTIONS_FR = {
 
 
 // ... autres constantes ...
-export const MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES: MedicalQuestionSectionDef[] = [
+// 10 questions ouvertes — remplace les anciens Medical 1/2/3 (archivés dans memory)
+export const MEDICAL_QUESTIONNAIRE: MedicalQuestionSectionDef[] = [
     {
-        title: "Motif de consultation et symptômes actuels",
+        title: "Anamnèse",
         questions: [
-            { id: 'motif', text: 'Cochez la zone qui correspond à votre probleme', type: 'anatomy-selector' },
-            { id: 'date_apparition', text: 'Date et heure d\'apparition du problème', type: 'text', placeholder: 'Ex: Hier soir vers 20h, il y a 3 semaines...' },
-            { id: 'circonstances', text: 'Circonstances d\'apparition (activité en cours, contexte)', type: 'text', placeholder: 'Ex: En me levant ce matin, en jouant au tennis, sans raison apparente...' },
-            { id: 'douleur_matin', text: 'La douleur est-elle présente le matin au réveil ?', type: 'yes-no' },
-            { id: 'derouillage_matinal', text: 'Si oui, ressentez-vous un besoin de dérouillage matinal ?', type: 'yes-no' },
-            { id: 'description_symptomes', text: 'Description des symptômes (nature, localisation, intensité, etc.)', type: 'text', placeholder: 'Ex: Brûlure dans le bas du dos, 6/10, irradiant dans la fesse...' },
-            { id: 'type_douleur', text: 'Type de douleur', type: 'text', placeholder: 'Ex: Brûlure, décharge électrique, élancement, serrement...' },
-            { id: 'trajet_douleur', text: 'Trajet de la douleur / irradiations', type: 'text', placeholder: 'Ex: Dans la fesse, le long de la jambe jusqu\'au pied...' },
-            { id: 'duree_crises', text: 'Durée des crises douloureuses', type: 'text', placeholder: 'Ex: Quelques secondes, minutes, heures, en continu...' },
-            { id: 'frequence_crises', text: 'Fréquence des crises douloureuses', type: 'text', placeholder: 'Ex: Plusieurs fois par jour, 1x/semaine, 1x/mois...' },
-            { id: 'symptomes_associes', text: 'Symptômes associés', type: 'text', placeholder: 'Ex: Fourmillements dans le pied, maux de tête...' },
-            { id: 'facteurs_aggravants', text: 'Facteurs aggravants (ce qui augmente la douleur)', type: 'text', placeholder: 'Ex: La marche, la position assise prolongée, le matin au réveil...' },
-            { id: 'facteurs_soulageants', text: 'Facteurs soulageants (ce qui diminue la douleur)', type: 'text', placeholder: 'Ex: Le repos, les étirements, application de chaud/froid...' },
-            { id: 'evolution', text: 'Évolution depuis le début (aggravation, amélioration, intermittence...)', type: 'text', placeholder: 'Ex: S\'aggrave depuis 3 jours, stable le reste du temps...' },
-            { id: 'traitements_anterieurs', text: 'Traitements ou mesures déjà prises pour ce problème', type: 'text', placeholder: 'Ex: Séances de kiné il y a 1 an, prise de Doliprane...' }
+            { id: 'q1_motif', text: 'Quelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?', type: 'text', placeholder: 'Ex : Douleur dans le bas du dos depuis 2 semaines...' },
+            { id: 'q2_apparition', text: 'Quand ce problème est-il apparu et dans quelles circonstances ?', type: 'text', placeholder: 'Ex : Il y a 3 semaines, en soulevant une charge lourde...' },
+            { id: 'q3_douleur', text: 'Comment décririez-vous votre douleur ? (type, localisation, irradiation, présence le matin au réveil)', type: 'text', placeholder: 'Ex : Brûlure dans le bas du dos, irradie dans la fesse droite, raide le matin...' },
+            { id: 'q4_evolution', text: 'Combien de temps durent les crises et à quelle fréquence reviennent-elles ? Comment cela évolue-t-il ?', type: 'text', placeholder: 'Ex : Crises de 30 min, plusieurs fois par jour, aggravation progressive...' },
+            { id: 'q5_facteurs', text: 'Qu\'est-ce qui aggrave votre douleur ? Et qu\'est-ce qui la soulage ?', type: 'text', placeholder: 'Ex : La position assise prolongée aggrave, les étirements soulagent...' },
+            { id: 'q6_symptomes', text: 'Avez-vous d\'autres symptômes associés ? Sur une échelle de 0 à 10, comment évaluez-vous votre douleur ?', type: 'text', placeholder: 'Ex : Fourmillements dans le pied droit, douleur à 7/10...' },
+            { id: 'q7_antecedents', text: 'Avez-vous des problèmes de santé connus, des chirurgies ou des traumatismes importants ?', type: 'text', placeholder: 'Ex : Opération du genou en 2018, diabète de type 2...' },
+            { id: 'q8_examens', text: 'Avez-vous déjà réalisé des examens ou essayé des traitements pour ce problème ?', type: 'text', placeholder: 'Ex : IRM lombaire en 2024, 10 séances de kiné, infiltration...' },
+            { id: 'q9_mode_vie', text: 'Quelle est votre situation actuelle ? (profession, sport, médicaments, allergies, tabac, sommeil, stress)', type: 'text', placeholder: 'Ex : Employé de bureau, course à pied 2x/sem, paracétamol au besoin...' },
+            { id: 'q10_objectifs', text: 'Quels sont vos objectifs et vos attentes vis-à-vis de la kinésithérapie ?', type: 'text', placeholder: 'Ex : Reprendre le sport sans douleur, pouvoir jouer avec mes enfants...' },
         ]
     }
 ];
 
-export const MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX: MedicalQuestionSectionDef[] = [
-    {
-        title: "Antécédents médicaux et chirurgicaux",
-        questions: [
-            { id: 'hta', text: "Hypertension artérielle (tension élevée) ?", type: 'yes-no-specify', placeholder: 'Ex: Diagnostiquée en 2018, sous traitement' },
-            { id: 'coronarienne', text: "Maladie coronarienne (angine de poitrine) ou antécédent d'infarctus du myocarde (crise cardiaque) ?", type: 'yes-no-specify', placeholder: 'Ex: Infarctus en 2020, pose de stent' },
-            { id: 'insuffisance_cardiaque', text: "Insuffisance cardiaque (faiblesse du cœur) ?", type: 'yes-no-specify', placeholder: 'Précisez l\'année du diagnostic et le suivi' },
-            { id: 'rythme_cardiaque', text: "Troubles du rythme cardiaque (par ex. fibrillation auriculaire) ou porteur d'un pacemaker/défibrillateur ?", type: 'yes-no-specify', placeholder: 'Ex: Fibrillation auriculaire depuis 2015 / Pacemaker posé en 2021' },
-            { id: 'valves_cardiaques', text: "Maladie des valves cardiaques (souffle au cœur, valve cardiaque remplacée) ?", type: 'yes-no-specify', placeholder: 'Ex: Remplacement valvulaire en 2019' },
-            { id: 'avc_ait', text: "Accident vasculaire cérébral (AVC) ou accident ischémique transitoire (AIT) ?", type: 'yes-no-specify', placeholder: 'Précisez l\'année et les séquelles éventuelles' },
-            { id: 'anevrisme', text: "Anévrisme de l'aorte abdominale (AAA) ou autre anévrisme vasculaire ?", type: 'yes-no-specify', placeholder: 'Précisez la localisation et l\'année' },
-            { id: 'thrombose_veineuse', text: "Thrombose veineuse profonde (TVP, phlébite) ?", type: 'yes-no-specify', placeholder: 'Précisez l\'année et le membre concerné' },
-            { id: 'embolie_pulmonaire', text: "Embolie pulmonaire (caillot dans les poumons) ?", type: 'yes-no-specify', placeholder: 'Précisez l\'année' },
-            { id: 'autre_cardiovasculaire', text: "Autre maladie cardiovasculaire importante (artérite des jambes, maladie vasculaire périphérique, etc.) ?", type: 'yes-no-specify', placeholder: 'Précisez la maladie et l\'année' },
-            { id: 'asthme', text: "Asthme ?", type: 'yes-no-specify', placeholder: 'Ex: Depuis l\'enfance, traitement de fond' },
-            { id: 'bpco', text: "Bronchopneumopathie chronique obstructive (BPCO, bronchite chronique) ?", type: 'yes-no-specify', placeholder: 'Précisez l\'année du diagnostic' },
-            { id: 'autre_respiratoire', text: "Autre maladie respiratoire chronique (fibrose pulmonaire, séquelles de tuberculose, etc.) ?", type: 'yes-no-specify', placeholder: 'Précisez la maladie et l\'année' },
-            { id: 'diabete', text: "Diabète (type 1 ou 2) ?", type: 'yes-no-specify', placeholder: 'Précisez le type, l\'année et le traitement' },
-            { id: 'cholesterol', text: "Excès de cholestérol (hypercholestérolémie) ?", type: 'yes-no-specify', placeholder: 'Précisez depuis quand et le traitement' },
-            { id: 'thyroide', text: "Maladie de la thyroïde (hyperthyroïdie, hypothyroïdie) ?", type: 'yes-no-specify', placeholder: 'Précisez le type et l\'année' },
-            { id: 'autre_endocrinienne', text: "Autre maladie endocrinienne ou métabolique (ex : goutte, problème des surrénales) ?", type: 'yes-no-specify', placeholder: 'Précisez la maladie et l\'année' },
-            { id: 'ulcere_reflux', text: "Ulcère de l'estomac/duodénum ou reflux gastro-œsophagien important ?", type: 'yes-no-specify', placeholder: 'Précisez le diagnostic et l\'année' },
-            { id: 'maladie_foie', text: "Maladie du foie (hépatite, cirrhose...) ?", type: 'yes-no-specify', placeholder: 'Précisez la maladie et l\'année' },
-            { id: 'maladie_intestin', text: "Maladie inflammatoire de l'intestin (Crohn, rectocolite hémorragique) ?", type: 'yes-no-specify', placeholder: 'Précisez la maladie et l\'année' },
-            { id: 'autre_digestive', text: "Autre affection digestive chronique (pancréatite chronique, etc.) ?", type: 'yes-no-specify', placeholder: 'Précisez la maladie et l\'année' },
-            { id: 'maladie_renale', text: "Maladie rénale chronique (insuffisance rénale) ?", type: 'yes-no-specify', placeholder: 'Précisez l\'année du diagnostic' },
-            { id: 'calculs_renaux', text: "Calculs rénaux à répétition (lithiases urinaires) ?", type: 'yes-no-specify', placeholder: 'Précisez la fréquence et l\'année du dernier' },
-            { id: 'prostate_hommes', text: "(Hommes) Problèmes de prostate (hypertrophie bénigne, cancer de la prostate) ?", type: 'yes-no-specify', placeholder: 'Précisez le diagnostic et l\'année' },
-            { id: 'gynecologiques_femmes', text: "(Femmes) Affections gynécologiques (fibromes, endométriose, etc.) ?", type: 'yes-no-specify', placeholder: 'Précisez le diagnostic et l\'année' },
-            { id: 'autre_affection_non_citee', text: 'Autre affection non déjà citée ?', type: 'yes-no-specify', placeholder: 'Précisez l\'affection, l\'année du diagnostic...' }
-        ]
-    }
-];
-
-
-export const MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE: MedicalQuestionSectionDef[] = [
-    {
-        title: "Antécédents et contexte",
-        questions: [
-            { id: 'imagerie_realisee', text: 'Avez-vous déjà réalisé des examens d\'imagerie (radio, scanner, IRM, écho) ?', type: 'yes-no-specify', placeholder: 'Ex: Radio du dos en 2021, IRM du genou en 2022...' },
-            { id: 'traitement_suivi', text: 'Avez-vous déjà suivi un traitement pour ce problème ?', type: 'yes-no-specify', placeholder: 'Ex: Kinésithérapie, ostéopathie, médicaments (préciser)...' },
-            { id: 'chirurgie_anterieure', text: 'Avez-vous déjà eu une intervention chirurgicale ?', type: 'yes-no-specify', placeholder: 'Ex: Opération du genou en 2018 (ligaments croisés)...' },
-            { id: 'antecedents_medicaux', text: 'Avez-vous d\'autres problèmes de santé connus (ex: diabète, HTA, maladie cardiaque, cancer...) ?', type: 'yes-no-specify', placeholder: 'Ex: Diabète de type 2, asthme...' },
-            { id: 'antecedents_traumatiques', text: 'Avez-vous eu des traumatismes importants (accident, chute...) ?', type: 'yes-no-specify', placeholder: 'Ex: Accident de voiture en 2015, chute de vélo...' },
-            { id: 'medicaments_actuels', text: 'Prenez-vous des médicaments actuellement ?', type: 'yes-no-specify', placeholder: 'Ex: Paracétamol, anti-inflammatoires, traitement pour la tension...' },
-            { id: 'allergies', text: 'Avez-vous des allergies connues ?', type: 'yes-no-specify', placeholder: 'Ex: Pollen, acariens, pénicilline...' },
-            { id: 'tabac', text: 'Êtes-vous fumeur ?', type: 'yes-no-specify', placeholder: 'Ex: 10 cigarettes/jour depuis 15 ans...' },
-            { id: 'troubles_sommeil', text: 'Avez-vous des troubles du sommeil ?', type: 'yes-no-specify', placeholder: 'Ex: Difficultés d\'endormissement, réveils nocturnes...' },
-            { id: 'stress', text: 'Vous sentez-vous stressé(e) ou anxieux(se) en ce moment ?', type: 'yes-no-specify', placeholder: 'Ex: Lié au travail, situation personnelle...' },
-            { id: 'activite_professionnelle', text: 'Quelle est votre activité professionnelle et quelles sont les contraintes associées (port de charge, posture...) ?', type: 'text', placeholder: 'Ex: Employé de bureau (assis 8h/j), maçon (port de charges)...' },
-            { id: 'activites_physiques', text: 'Pratiquez-vous une ou plusieurs activités physiques ou sportives ? Si oui, lesquelles et à quelle fréquence ?', type: 'text', placeholder: 'Ex: Course à pied 2x/semaine, yoga 1x/semaine...' },
-            { id: 'objectifs', text: 'Quels sont vos objectifs et attentes vis-à-vis de la kinésithérapie ?', type: 'text', placeholder: 'Ex: Ne plus avoir mal, reprendre le sport, pouvoir jouer avec mes enfants...' },
-        ]
-    }
-];
-
-export const ALL_MEDICAL_QUESTIONS = [...MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES, ...MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX, ...MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE];
+// Backward compat aliases — all point to the single questionnaire
+export const MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES = MEDICAL_QUESTIONNAIRE;
+export const MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX: MedicalQuestionSectionDef[] = [];
+export const MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE: MedicalQuestionSectionDef[] = [];
+export const ALL_MEDICAL_QUESTIONS = MEDICAL_QUESTIONNAIRE;
 
 
 // ANATOMY

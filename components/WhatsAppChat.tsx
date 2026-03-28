@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Logo from './Logo';
-import { submitBilan } from '../utils';
 import { PatientInfo } from '../types';
 import { parseLLMResponse, type LLMParsed } from '@/lib/parseLLMResponse';
 
@@ -32,13 +31,22 @@ Le patient est déjà connecté et identifié :
 NE DEMANDEZ PAS son nom ou prénom. Ces informations sont déjà enregistrées.
 
 ## RÈGLES ABSOLUES
-1. Parlez en Français. Ton chaleureux mais professionnel (style messagerie).
-2. Posez UNE SEULE question à la fois, jamais de rafale.
-3. Langage patient accessible — pas de jargon médical sauf si le patient l'utilise.
-4. Si le patient donne une réponse floue, demandez des précisions avec tact.
-5. Ne donnez JAMAIS de diagnostic. Vous préparez le dossier pour le kiné.
-6. Utilisez quelques emojis avec parcimonie pour rendre l'échange humain.
+1. Parlez en français formel et professionnel PARFAIT. Orthographe irréprochable. COPIEZ les questions de la section STRUCTURE ci-dessous MOT POUR MOT — ne les reformulez JAMAIS. Tous les accents doivent être corrects (é, è, ê, à, ù, ô, î, û, ç). Exemples corrects : "Ressentez-vous" (JAMAIS "Ressez-vous"), "Où" (JAMAIS "Ou"), "déjà", "problème", "résumé". JAMAIS d'emojis. JAMAIS de mot anglais — tout doit être en français.
+2. Ton chaleureux mais professionnel (vouvoiement, style messagerie soignée).
+3. Posez UNE SEULE question à la fois, jamais de rafale.
+4. Langage patient accessible — pas de jargon médical sauf si le patient l'utilise.
+5. Si le patient donne une réponse floue, demandez des précisions avec tact.
+6. Ne donnez JAMAIS de diagnostic. Vous préparez le dossier pour le kiné.
 7. Si vous détectez un RED FLAG, ne paniquez pas le patient mais notez-le.
+
+## RÈGLES DE CONCISION — CRITIQUE
+- Votre message doit faire 1 à 3 phrases MAXIMUM. Jamais plus.
+- NE RÉCAPITULEZ JAMAIS la réponse du patient. Ne reformulez pas ce qu'il vient de dire.
+- NE DITES PAS "passons à la question suivante", "merci pour cette information", "je comprends", ni aucune phrase de transition.
+- Posez DIRECTEMENT la question suivante, sans préambule ni commentaire.
+- Si le patient ne comprend pas, répétez la question telle quelle ou reformulez-la simplement.
+- Exemple CORRECT : "Avez-vous déjà essayé des traitements pour votre dos ? Kinésithérapie, ostéopathie, médicaments, infiltrations ?"
+- Exemple INTERDIT : "Merci de me fournir cette information, Dev. Il semblerait que vous avez une douleur au dos qui est plutôt pesante et qui peut varier en intensité. Pouvez-vous me dire combien de temps durent ces crises ?"
 
 ## STRUCTURE DE L'INTERROGATOIRE
 
@@ -78,7 +86,7 @@ Q20. "Quelle est votre activité professionnelle et ses contraintes physiques ? 
 Q21. "Pour terminer : quels sont vos objectifs et attentes vis-à-vis de la kinésithérapie ?"
 
 ### CONCLUSION
-Après Q21, remerciez simplement le patient avec un message court et chaleureux du type : "Merci beaucoup pour vos réponses ! Votre dossier va être transmis à votre kinésithérapeute qui en prendra connaissance avant votre séance. À très bientôt ! 😊"
+Après Q21, remerciez simplement le patient avec un message court et chaleureux du type : "Merci beaucoup pour vos réponses. Votre dossier va être transmis à votre kinésithérapeute qui en prendra connaissance avant votre séance. À très bientôt."
 NE FAITES PAS de récapitulatif visible, NE LISTEZ PAS les données collectées, N'AFFICHEZ PAS de JSON au patient. Juste un remerciement simple et humain.
 En revanche, remplissez bien le champ "synthese" dans votre JSON de réponse avec TOUTES les données collectées en texte structuré — c'est ce qui sera sauvegardé dans le dossier du praticien.
 
@@ -93,39 +101,29 @@ Si mentionnés, notez-les mais ne paniquez pas le patient :
 - Céphalée brutale "en coup de tonnerre"
 - Trauma + déformation
 
-## FORMAT DE RÉPONSE
-Répondez UNIQUEMENT en JSON valide, sans markdown ni backticks :
-{"message":"votre message au patient","phase":1,"question_num":1,"red_flags":[],"collected":{},"progress":5,"done":false}
+## FORMAT DE RÉPONSE — OBLIGATOIRE
+Répondez UNIQUEMENT en JSON valide, sans markdown ni backticks.
 
-- message : votre texte au patient
+EXEMPLE avec collected REMPLI (ce que vous DEVEZ faire) :
+{"message":"Quand est-ce que ce problème est apparu ?","phase":1,"question_num":2,"red_flags":[],"collected":{"motif":"lombalgie","zone":"bas du dos"},"progress":10,"done":false}
+
+CHAMPS OBLIGATOIRES à chaque réponse :
+- message : votre texte au patient (1-3 phrases max)
 - phase : 1, 2 ou 3
 - question_num : numéro de question en cours (1-21)
-- red_flags : liste de red flags détectés (chaînes)
-- collected : objet avec les données recueillies mises à jour. Clés possibles : motif, zone, date_apparition, circonstances, douleur_matin, derouillage, type_douleur, trajet_irradiation, duree_crises, frequence_crises, evolution, facteurs_aggravants, facteurs_soulageants, symptomes_associes, eva, cardiovasculaire, respiratoire, endocrinien, digestif, renal, uro_gyneco, autres_antecedents, imagerie, traitements_anterieurs, chirurgies, traumatismes, medicaments, allergies, tabac, sommeil, stress, profession, sport, objectifs
-- progress : pourcentage estimé (0-100)
-- done : true quand l'interrogatoire est terminé
+- red_flags : liste de red flags détectés (chaînes vides si aucun)
+- collected : OBLIGATOIRE — accumulez TOUTES les données recueillies depuis le début. NE RENVOYEZ JAMAIS un collected vide {} après Q1. Ajoutez les nouvelles données à chaque tour. Clés : motif, zone, date_apparition, circonstances, douleur_matin, derouillage, type_douleur, trajet_irradiation, duree_crises, frequence_crises, evolution, facteurs_aggravants, facteurs_soulageants, symptomes_associes, eva, cardiovasculaire, respiratoire, endocrinien, digestif, renal, uro_gyneco, autres_antecedents, imagerie, traitements_anterieurs, chirurgies, traumatismes, medicaments, allergies, tabac, sommeil, stress, profession, sport, objectifs
+- progress : pourcentage estimé (0-100), incrémentez à chaque question (~5% par question)
+- done : true quand l'interrogatoire est terminé (après Q21)
 
-Quand done=true, ajoutez un champ "synthese" avec le résumé clinique complet en texte structuré.
+QUAND done=true, vous DEVEZ ajouter un champ "synthese" avec un résumé clinique COMPLET et structuré reprenant TOUTES les données du champ collected en texte lisible pour le praticien. La synthèse doit faire au minimum 5 lignes et couvrir : motif, caractéristiques douleur, antécédents, traitements, mode de vie, objectifs.
 
 ## DÉMARRAGE
 Premier message : saluez ${pi.prenom} par son prénom et posez directement Q1 (motif de consultation). Ne demandez PAS le nom.`;
 
-// ⚠️ ATTENTION : La clé API OpenRouter est injectée côté client par Vite (process.env).
-// Elle est visible dans le bundle JS déployé. C'est acceptable pour une clé free-tier
-// mais NE PAS utiliser de clé payante ici. Pour sécuriser : migrer vers un backend proxy.
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-
-// Ollama local — fallback ultime, jamais rate-limited
-const OLLAMA_URL = 'http://localhost:11434/v1/chat/completions';
-const OLLAMA_MODEL = 'qwen3:8b';
-
-// Fallback chain : si le 1er modèle retourne 429/erreur, on essaie le suivant
-const MODEL_CHAIN = [
-    'nvidia/nemotron-nano-9b-v2:free',   // Premier choix — le plus fiable
-    'google/gemma-3-12b-it:free',        // Bon francais, parfois rate-limited
-    'google/gemma-3-4b-it:free',         // Backup leger
-    'mistralai/mistral-small-3.1-24b-instruct:free', // Dernier recours cloud
-];
+// KapCro-Health — fork dédié santé sur port 5011 (Groq → Gemini → Cerebras)
+const KAPCRO_URL = 'http://localhost:5011/v1/chat/completions';
+const KAPCRO_MODEL = 'health';
 
 const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -147,6 +145,93 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
     ]);
 
     const phaseLabels: Record<number, string> = { 1: 'Motif & Symptômes', 2: 'Antécédents Médicaux', 3: 'Contexte & Mode de vie' };
+
+    // Deterministic synthesis: ALWAYS generated from collected data, never from LLM prose
+    const formatSynthesis = (data: Record<string, any>, flags: string[]): string => {
+        const v = (key: string) => data[key] || '';
+        const ras = (key: string) => { const val = v(key); return val && val !== 'RAS' && val !== 'aucun' && val !== 'non' ? val : ''; };
+        const sections: string[] = [];
+
+        // Line 1: Patient + Motif
+        sections.push(`PATIENT : ${patientInfo.nom} ${patientInfo.prenom}. Motif : ${v('motif') || 'non précisé'}. Zone : ${v('zone') || v('motif')}. Apparition : ${v('date_apparition') || '?'}, circonstances : ${v('circonstances') || 'non précisées'}.`);
+
+        // Line 2: Douleur
+        const douleurParts = [
+            v('type_douleur') && `type ${v('type_douleur')}`,
+            v('eva') && `EVA ${v('eva')}`,
+            v('trajet_irradiation') && `irradiation ${v('trajet_irradiation')}`,
+            v('douleur_matin') && `matin : ${v('douleur_matin')}`,
+            v('derouillage') && `dérouillage : ${v('derouillage')}`,
+            v('duree_crises') && `durée : ${v('duree_crises')}`,
+            v('frequence_crises') && `fréquence : ${v('frequence_crises')}`,
+            v('evolution') && `évolution : ${v('evolution')}`,
+        ].filter(Boolean);
+        sections.push(`DOULEUR : ${douleurParts.join('. ')}.`);
+
+        // Line 3: Aggravants/Soulageants
+        if (v('facteurs_aggravants') || v('facteurs_soulageants') || v('symptomes_associes')) {
+            sections.push(`FACTEURS : Aggravants : ${v('facteurs_aggravants') || 'non précisés'}. Soulageants : ${v('facteurs_soulageants') || 'non précisés'}. Symptômes associés : ${v('symptomes_associes') || 'aucun'}.`);
+        }
+
+        // Line 4: Antécédents
+        const antecParts = [
+            ras('cardiovasculaire') && `Cardio : ${v('cardiovasculaire')}`,
+            ras('respiratoire') && `Respi : ${v('respiratoire')}`,
+            ras('endocrinien') && `Endocrinien : ${v('endocrinien')}`,
+            ras('digestif') && `Digestif : ${v('digestif')}`,
+            ras('renal') && `Rénal : ${v('renal')}`,
+            ras('uro_gyneco') && `Uro-gynéco : ${v('uro_gyneco')}`,
+            ras('autres_antecedents') && `Autres : ${v('autres_antecedents')}`,
+        ].filter(Boolean);
+        const antecLine = antecParts.length > 0 ? antecParts.join('. ') : 'RAS';
+        sections.push(`ANTÉCÉDENTS : ${antecLine}. Chirurgies : ${v('chirurgies') || 'aucune'}. Traumatismes : ${v('traumatismes') || 'aucun'}. Imagerie : ${v('imagerie') || 'aucune'}. Traitements antérieurs : ${v('traitements_anterieurs') || 'aucun'}.`);
+
+        // Line 5: Médicaments/Allergies
+        sections.push(`TRAITEMENTS : Médicaments : ${v('medicaments') || 'aucun'}. Allergies : ${v('allergies') || 'aucune'}.`);
+
+        // Line 6: Mode de vie
+        sections.push(`MODE DE VIE : Profession : ${v('profession') || '?'}. Sport : ${v('sport') || 'aucun'}. Tabac : ${v('tabac') || '?'}. Sommeil : ${v('sommeil') || '?'}. Stress : ${v('stress') || '?'}.`);
+
+        // Line 7: Objectifs
+        sections.push(`OBJECTIFS : ${v('objectifs') || 'non précisés'}.`);
+
+        // Line 8: Red flags
+        if (flags.length > 0) {
+            sections.push(`RED FLAGS : ${flags.join(', ')}.`);
+        }
+
+        return sections.join('\n');
+    };
+
+    const buildFallbackCollected = (msgs: Message[]): Record<string, string> => {
+        const patientMsgs = msgs.filter(m => m.sender === 'user').map(m => m.text);
+        const allText = patientMsgs.join(' ').toLowerCase();
+        const data: Record<string, string> = {};
+        if (patientMsgs.length > 0) data.motif = patientMsgs[0];
+        if (patientMsgs.length > 1) data.circonstances = patientMsgs[1];
+        const evaMatch = allText.match(/(\d+)\s*(?:sur|\/)\s*10/);
+        if (evaMatch) data.eva = `${evaMatch[1]}/10`;
+        // Map keywords to fields
+        const keywords: [string, string[]][] = [
+            ['medicaments', ['médicament', 'medicament', 'comprimé', 'traitement', 'prend']],
+            ['allergies', ['allergi', 'pénicilline', 'penicilline']],
+            ['chirurgies', ['opér', 'chirurg', 'intervention']],
+            ['tabac', ['fume', 'tabac', 'cigarette', 'arrêté de fumer']],
+            ['sport', ['sport', 'football', 'tennis', 'escalade', 'yoga', 'aquagym', 'marche']],
+            ['profession', ['profession', 'travail', 'secrétaire', 'informaticien', 'cadre', 'retraité']],
+            ['sommeil', ['dor', 'sommeil', 'réveil', 'insomni']],
+            ['stress', ['stress', 'anxie', 'angoiss']],
+        ];
+        for (const [field, kws] of keywords) {
+            for (const msg of patientMsgs) {
+                if (kws.some(k => msg.toLowerCase().includes(k))) {
+                    data[field] = msg;
+                    break;
+                }
+            }
+        }
+        return data;
+    };
 
     // #M27 — Network offline detection
     useEffect(() => {
@@ -177,10 +262,29 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
             setCollectedData(prev => ({ ...prev, ...parsed.collected }));
         }
         if (parsed.done) {
-            setIsDone(true);
-            setSynthesis(parsed.synthese || 'Anamnèse complète');
+            // Guard: reject done=true if LLM skipped questions (must reach Q21)
+            const qNum = parsed.question_num || questionNum;
+            const synth = parsed.synthese || '';
+            const synthLines = synth.split('\n').filter((l: string) => l.trim().length > 0).length;
+            const synthIsValid = synth.length >= 200 && synthLines >= 5;
+
+            if (qNum < 18) {
+                // LLM tried to end way too early — force continuation
+                console.warn(`[KSLB] Rejected done=true at Q${qNum} — forcing continuation`);
+                parsed.done = false;
+                parsed.progress = Math.min(parsed.progress || 70, 85);
+                return parsed.message?.trim() || 'Continuons avec les questions suivantes.';
+            } else if (!synthIsValid) {
+                // Synthese too short — accept done but use fallback synthesis
+                console.warn(`[KSLB] Synthese too short (${synth.length} chars, ${synthLines} lines) — using fallback`);
+                setIsDone(true);
+                setSynthesis(null); // will trigger fallback in save useEffect
+            } else {
+                setIsDone(true);
+                setSynthesis(synth);
+            }
         }
-        return parsed.message?.trim() || 'Pouvez-vous preciser votre reponse ?';
+        return parsed.message?.trim() || 'Pouvez-vous préciser votre réponse ?';
     };
 
     const sendToLLM = async (userMessage: string): Promise<string> => {
@@ -193,177 +297,82 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
             chatHistory.current = [systemMsg, ...chatHistory.current.slice(-(MAX_HISTORY - 1))];
         }
 
-        const MAX_RETRIES = 2;
-        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-            // Try each model in the fallback chain until one works
-            let lastError: Error | null = null;
-            for (const model of MODEL_CHAIN) {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-                try {
-                    const response = await fetch(OPENROUTER_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                        },
-                        body: JSON.stringify({
-                            model,
-                            messages: chatHistory.current,
-                            max_tokens: 1024,
-                            temperature: 0.7,
-                        }),
-                        signal: controller.signal,
-                    });
-
-                    clearTimeout(timeoutId);
-
-                    if (!response.ok) {
-                        const errorData = await response.text();
-                        console.warn(`[Fallback] ${model} → ${response.status}`, errorData);
-                        lastError = new Error(`Erreur API (${response.status})`);
-                        continue; // Try next model
-                    }
-
-                    const data = await response.json();
-                    const assistantText = data.choices?.[0]?.message?.content?.trim();
-
-                    // Empty response = try next model instead of showing error
-                    if (!assistantText) {
-                        console.warn(`[Fallback] ${model} → réponse vide`);
-                        lastError = new Error('Réponse vide du modèle');
-                        continue;
-                    }
-
-                    chatHistory.current.push({ role: 'assistant', content: assistantText });
-                    console.info(`[LLM] Réponse via ${model} (attempt ${attempt + 1})`);
-                    const parsed = parseLLMResponse(assistantText, { phase, questionNum, progress });
-                    return applyResponse(parsed);
-                } catch (err: any) {
-                    clearTimeout(timeoutId);
-                    if (err.name === 'AbortError') {
-                        console.warn(`[Fallback] ${model} → timeout`);
-                        lastError = new Error('Le serveur met trop de temps à répondre.');
-                        continue; // Try next model
-                    }
-                    lastError = err;
-                    continue;
-                }
-            }
-
-            // All cloud models failed — try Ollama local before retrying
+        // Helper: call an OpenAI-compatible endpoint
+        const callLLM = async (url: string, model: string, label: string): Promise<string | null> => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
             try {
-                const ollamaController = new AbortController();
-                const ollamaTimeout = setTimeout(() => ollamaController.abort(), 30000); // 30s for local model
-                const ollamaRes = await fetch(OLLAMA_URL, {
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        model: OLLAMA_MODEL,
+                        model,
                         messages: chatHistory.current,
-                        max_tokens: 1024,
+                        max_tokens: 2048,
                         temperature: 0.7,
                     }),
-                    signal: ollamaController.signal,
+                    signal: controller.signal,
                 });
-                clearTimeout(ollamaTimeout);
-
-                if (ollamaRes.ok) {
-                    const ollamaData = await ollamaRes.json();
-                    const ollamaText = ollamaData.choices?.[0]?.message?.content?.trim();
-                    if (ollamaText) {
-                        chatHistory.current.push({ role: 'assistant', content: ollamaText });
-                        console.info(`[LLM] Réponse via Ollama/${OLLAMA_MODEL} (attempt ${attempt + 1})`);
-                        const parsed = parseLLMResponse(ollamaText, { phase, questionNum, progress });
-                        return applyResponse(parsed);
-                    }
+                clearTimeout(timeoutId);
+                if (!res.ok) {
+                    console.warn(`[${label}] ${model} → ${res.status}`);
+                    return null;
                 }
-                console.warn(`[Fallback] Ollama/${OLLAMA_MODEL} → ${ollamaRes.ok ? 'réponse vide' : ollamaRes.status}`);
-            } catch (ollamaErr: any) {
-                console.warn(`[Fallback] Ollama/${OLLAMA_MODEL} → ${ollamaErr.name === 'AbortError' ? 'timeout' : 'indisponible'}`);
+                const data = await res.json();
+                return data.choices?.[0]?.message?.content?.trim() || null;
+            } catch (err: any) {
+                clearTimeout(timeoutId);
+                console.warn(`[${label}] ${model} → ${err.name === 'AbortError' ? 'timeout' : err.message}`);
+                return null;
             }
+        };
 
-            // Ollama also failed — retry with backoff
-            if (attempt < MAX_RETRIES) {
-                // Remove dangling user message to keep history clean for retry
-                // (prevents Gemma 400 errors from incomplete user/assistant pairs)
-                const lastMsg = chatHistory.current[chatHistory.current.length - 1];
-                if (lastMsg?.role === 'user') {
-                    chatHistory.current.pop();
-                }
-                const backoffMs = 10000 * (attempt + 1); // 10s, then 20s
-                console.warn(`[Retry] All models failed, retrying in ${backoffMs / 1000}s (attempt ${attempt + 2}/${MAX_RETRIES + 1})...`);
-                setIsRetrying(true);
-                await new Promise(r => setTimeout(r, backoffMs));
-                setIsRetrying(false);
-                // Re-add user message for retry
-                chatHistory.current.push({ role: 'user', content: userMessage });
-            } else {
-                // Final failure — clean up dangling user message
-                const lastMsg = chatHistory.current[chatHistory.current.length - 1];
-                if (lastMsg?.role === 'user') {
-                    chatHistory.current.pop();
-                }
-                throw lastError || new Error('Tous les modèles sont indisponibles.');
-            }
+        // KapCro v2.5 — proxy unifié (failover interne entre 39 clés / 6 providers)
+        const text = await callLLM(KAPCRO_URL, KAPCRO_MODEL, 'KapCro');
+
+        if (!text) {
+            const lastMsg = chatHistory.current[chatHistory.current.length - 1];
+            if (lastMsg?.role === 'user') chatHistory.current.pop();
+            throw new Error('KapCro-Health est indisponible. Vérifiez que le serveur tourne sur le port 5011.');
         }
 
-        throw new Error('Tous les modèles sont indisponibles.');
+        chatHistory.current.push({ role: 'assistant', content: text });
+        const parsed = parseLLMResponse(text, { phase, questionNum, progress });
+        return applyResponse(parsed);
     };
 
-    // Initial greeting
+    // Initial greeting — deterministic Q1, no LLM call needed
     useEffect(() => {
-        (async () => {
-            setIsTyping(true);
-            try {
-                const botText = await sendToLLM("Bonjour, je suis prêt pour le questionnaire médical.");
-                setMessages([{
-                    id: '1',
-                    text: botText,
-                    sender: 'bot',
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                }]);
-            } catch {
-                // #M22 — Separate error message from welcome (2 distinct bubbles)
-                const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                setMessages([
-                    {
-                        id: 'err-init',
-                        text: `⚠️ L'assistant IA est temporairement indisponible. Vous pouvez quand même commencer.`,
-                        sender: 'bot',
-                        timestamp: ts,
-                    },
-                    {
-                        id: 'welcome-fallback',
-                        text: `Bonjour ${patientInfo.prenom} ! 😊\n\nQuelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?`,
-                        sender: 'bot',
-                        timestamp: ts,
-                    },
-                ]);
-            }
-            setIsTyping(false);
-        })();
+        const greetingText = `Bonjour ${patientInfo.prenom},\n\nQuelle est la raison de votre consultation ? Où avez-vous mal ou quel est votre problème ?`;
+        // Inject into chat history so the LLM has context for the next exchange
+        chatHistory.current.push({ role: 'assistant', content: JSON.stringify({ message: greetingText, phase: 1, question_num: 1, red_flags: [], collected: {}, progress: 5, done: false }) });
+        setMessages([{
+            id: '1',
+            text: greetingText,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
     }, []);
 
-    // Auto-submit to Drive when done
+    // Auto-save on Mac via KapCro /save-anamnese endpoint
     useEffect(() => {
-        if (!isDone || driveStatus !== 'idle' || !synthesis) return;
+        if (!isDone || driveStatus !== 'idle') return;
 
         (async () => {
             setDriveStatus('sending');
             try {
                 const now = new Date();
-                const dateStr = now.toISOString().split('T')[0];
                 const dateFr = now.toLocaleDateString('fr-FR');
-                const nom = patientInfo.nom.toUpperCase();
+                const nom = patientInfo.nom;
                 const prenom = patientInfo.prenom;
                 const nss = patientInfo.numeroSecuriteSociale || '000';
-                const patientFolder = `${nom}_${prenom}_${nss}`;
-                const basePath = `APP BILANS/Patients Data/${patientFolder}`;
-                const subFolder = `Tronc commun_${nss}`;
-                const filename = `${nom}_${prenom}_${dateStr}_Anamnese_Chat_${nss}.txt`;
-                const filePath = `${basePath}/${subFolder}/${filename}`;
+
+                // ALWAYS use collected data (fallback to conversation extraction if empty)
+                const hasCollected = Object.keys(collectedData).length > 0;
+                const finalCollected = hasCollected ? collectedData : buildFallbackCollected(messages);
+                // ALWAYS generate synthesis deterministically from collected data
+                // Never trust the LLM synthesis — it's inconsistent (1 paragraph, missing sections, etc.)
+                const finalSynthesis = formatSynthesis(finalCollected, redFlags);
 
                 const content = [
                     `ANAMNÈSE CONVERSATIONNELLE — ${nom} ${prenom}`,
@@ -374,15 +383,15 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                     `SYNTHÈSE CLINIQUE`,
                     `═══════════════════════════════════════`,
                     ``,
-                    synthesis,
+                    finalSynthesis,
                     ``,
                     `═══════════════════════════════════════`,
                     `DONNÉES STRUCTURÉES (JSON)`,
                     `═══════════════════════════════════════`,
                     ``,
-                    JSON.stringify(collectedData, null, 2),
+                    JSON.stringify(finalCollected, null, 2),
                     ``,
-                    redFlags.length > 0 ? `⚠️ RED FLAGS DÉTECTÉS : ${redFlags.join(', ')}` : 'Aucun red flag détecté.',
+                    redFlags.length > 0 ? `RED FLAGS DÉTECTÉS : ${redFlags.join(', ')}` : 'Aucun red flag détecté.',
                     ``,
                     `═══════════════════════════════════════`,
                     `CONVERSATION COMPLÈTE`,
@@ -391,14 +400,24 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                     ...messages.map(m => `[${m.timestamp}] ${m.sender === 'user' ? 'PATIENT' : 'ASSISTANT'} : ${m.text}`),
                 ].join('\n');
 
-                await submitBilan({
-                    patientInfo: { ...patientInfo, date: dateFr },
-                    filesToCreate: [{ path: filePath, content }],
+                const res = await fetch(`${KAPCRO_URL.replace('/v1/chat/completions', '')}/save-anamnese`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nom: patientInfo.nom,
+                        prenom: patientInfo.prenom,
+                        ins: nss,
+                        content,
+                        status: 'Complet',
+                    }),
                 });
 
+                if (!res.ok) throw new Error(`Erreur sauvegarde: ${res.status}`);
+                const result = await res.json();
+                console.log('Anamnèse sauvegardée:', result.path);
                 setDriveStatus('success');
             } catch (err) {
-                console.error('Drive submission error:', err);
+                console.error('Save error:', err);
                 setDriveStatus('error');
             }
         })();
@@ -432,7 +451,7 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
             console.error("LLM Error:", error);
             const errorMsg: Message = {
                 id: 'err-' + Date.now(),
-                text: "Désolé, j'ai rencontré un petit problème technique. Pouvons-nous reprendre ? 🔄",
+                text: "Désolé, j'ai rencontré un petit problème technique. Pouvons-nous reprendre ?",
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
@@ -462,12 +481,6 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                 </div>
             </div>
 
-            {/* #C01 — API key warning banner */}
-            {!process.env.OPENROUTER_API_KEY && (
-                <div className="bg-amber-100 border-b border-amber-300 px-4 py-2 text-amber-800 text-xs font-medium" role="alert">
-                    ⚠️ Clé API OpenRouter manquante. Le chat ne fonctionnera pas. Configurez <code className="bg-amber-200 px-1 rounded">OPENROUTER_API_KEY</code> dans le fichier <code className="bg-amber-200 px-1 rounded">.env</code>.
-                </div>
-            )}
 
             {/* #M27 — Offline detection banner */}
             {isOffline && (
@@ -535,8 +548,8 @@ const WhatsAppChat: React.FC<WhatsAppChatProps> = ({ onBack, patientInfo }) => {
                         driveStatus === 'error' ? 'text-red-700' : 'text-gray-500'
                     }`}>
                         {driveStatus === 'idle' && '✅ Anamnèse complète'}
-                        {driveStatus === 'sending' && '📤 Sauvegarde en cours...'}
-                        {driveStatus === 'success' && '✅ Dossier sauvegardé'}
+                        {driveStatus === 'sending' && 'Sauvegarde en cours...'}
+                        {driveStatus === 'success' && 'Dossier sauvegardé sur Mac'}
                         {driveStatus === 'error' && (
                             <>
                                 ❌ Erreur de sauvegarde{' '}

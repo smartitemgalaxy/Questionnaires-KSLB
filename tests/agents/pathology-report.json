@@ -1,0 +1,735 @@
+[
+  {
+    "pathology": "lombalgie",
+    "name": "Lombalgie chronique",
+    "exchanges": 6,
+    "successes": 4,
+    "empty_responses": 0,
+    "json_errors": 2,
+    "api_failures": 0,
+    "timeouts": 0,
+    "latencies": [
+      16565,
+      28938,
+      23560,
+      36114,
+      34011,
+      29418
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 2,
+        "question_num": 2,
+        "phase": 1,
+        "progress": 10
+      },
+      {
+        "exchange": 3,
+        "question_num": 3,
+        "phase": 1,
+        "progress": 15
+      },
+      {
+        "exchange": 6,
+        "question_num": 6,
+        "phase": 1,
+        "progress": 30
+      }
+    ],
+    "red_flags_detected": [
+      "Crackling sound could indicate ligament/tendon issue",
+      "Progressive pain",
+      "Morning stiffness",
+      "Radiation to leg"
+    ],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 16565,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "SLOW_RESPONSE",
+        "latency": 28938,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 3,
+        "type": "SLOW_RESPONSE",
+        "latency": 23560,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 4,
+        "type": "JSON_PARSE_ERROR",
+        "detail": "Unexpected non-whitespace character after JSON at position 574 (line 1 column 575)",
+        "raw": "{\"message\":\"Merci Martin 👇 Cette irradiation vers la jambe droite est un point important 🚨 As-tu aussi des sensations anormales (fourmillements, engourdissements) ou une faiblesse dans cette jambe ?"
+      },
+      {
+        "exchange": 5,
+        "type": "JSON_PARSE_ERROR",
+        "detail": "Unexpected non-whitespace character after JSON at position 635 (line 1 column 636)",
+        "raw": "{\"message\":\"Merci Martin 🙏 Cette évolution récente est un signe important 🚨 As-tu des facteurs qui aggravent ou soulagent la douleur (ex : mouvements, posture, repos) ?\",\"phase\":1,\"question_num\":5,\""
+      },
+      {
+        "exchange": 6,
+        "type": "SLOW_RESPONSE",
+        "latency": 29418,
+        "model": "ollama/qwen3:8b"
+      }
+    ]
+  },
+  {
+    "pathology": "cervicalgie",
+    "name": "Cervicalgie + céphalées",
+    "exchanges": 6,
+    "successes": 4,
+    "empty_responses": 0,
+    "json_errors": 0,
+    "api_failures": 2,
+    "timeouts": 0,
+    "latencies": [
+      17200,
+      27779,
+      16492,
+      17099
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 2,
+        "question_num": 2,
+        "phase": 1,
+        "progress": 10
+      },
+      {
+        "exchange": 3,
+        "question_num": 3,
+        "phase": 1,
+        "progress": 15
+      },
+      {
+        "exchange": 6,
+        "question_num": 4,
+        "phase": 1,
+        "progress": 20
+      }
+    ],
+    "red_flags_detected": [],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 17200,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "SLOW_RESPONSE",
+        "latency": 27779,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 3,
+        "type": "SLOW_RESPONSE",
+        "latency": 16492,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 4,
+        "type": "API_FAILURE",
+        "detail": "ALL_MODELS_FAILED"
+      },
+      {
+        "exchange": 5,
+        "type": "API_FAILURE",
+        "detail": "ALL_MODELS_FAILED"
+      },
+      {
+        "exchange": 6,
+        "type": "SLOW_RESPONSE",
+        "latency": 17099,
+        "model": "ollama/qwen3:8b"
+      }
+    ]
+  },
+  {
+    "pathology": "epaule",
+    "name": "Tendinite épaule",
+    "exchanges": 6,
+    "successes": 5,
+    "empty_responses": 0,
+    "json_errors": 1,
+    "api_failures": 0,
+    "timeouts": 0,
+    "latencies": [
+      15880,
+      17346,
+      28720,
+      25271,
+      21346,
+      22631
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 2,
+        "question_num": 2,
+        "phase": 1,
+        "progress": 10
+      },
+      {
+        "exchange": 4,
+        "question_num": 4,
+        "phase": 1,
+        "progress": 20
+      },
+      {
+        "exchange": 5,
+        "question_num": 5,
+        "phase": 1,
+        "progress": 25
+      },
+      {
+        "exchange": 6,
+        "question_num": 6,
+        "phase": 1,
+        "progress": 30
+      }
+    ],
+    "red_flags_detected": [],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 15880,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "SLOW_RESPONSE",
+        "latency": 17346,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 3,
+        "type": "JSON_PARSE_ERROR",
+        "detail": "Expected double-quoted property name in JSON at position 296 (line 1 column 297)",
+        "raw": "{\"message\":\"Pierre 🎨 Pourquoi ne pas préciser le type de douleur (acide, tirant, brûlant...) et si elle s'étend ailleurs ?\",\"phase\":1,\"question_num\":3,\"red_flags\":[],\"collected\":{\"motif\":\"douleur épa"
+      },
+      {
+        "exchange": 4,
+        "type": "SLOW_RESPONSE",
+        "latency": 25271,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 5,
+        "type": "SLOW_RESPONSE",
+        "latency": 21346,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 6,
+        "type": "SLOW_RESPONSE",
+        "latency": 22631,
+        "model": "ollama/qwen3:8b"
+      }
+    ]
+  },
+  {
+    "pathology": "genou",
+    "name": "Gonalgie post-entorse",
+    "exchanges": 6,
+    "successes": 5,
+    "empty_responses": 0,
+    "json_errors": 0,
+    "api_failures": 1,
+    "timeouts": 0,
+    "latencies": [
+      30895,
+      19155,
+      30399,
+      36720,
+      33357
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 2,
+        "question_num": 2,
+        "phase": 1,
+        "progress": 10
+      },
+      {
+        "exchange": 3,
+        "question_num": 3,
+        "phase": 1,
+        "progress": 15
+      },
+      {
+        "exchange": 4,
+        "question_num": 4,
+        "phase": 1,
+        "progress": 20
+      },
+      {
+        "exchange": 5,
+        "question_num": 7,
+        "phase": 2,
+        "progress": 25
+      }
+    ],
+    "red_flags_detected": [
+      "genou qui a lâché pendant un match de foot",
+      "genou qui a lâché pendant un match de foot",
+      "instabilité articulaire",
+      "genou qui a lâché pendant un match de foot",
+      "instabilité articulaire",
+      "douleur interne"
+    ],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 30895,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "SLOW_RESPONSE",
+        "latency": 19155,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 3,
+        "type": "SLOW_RESPONSE",
+        "latency": 30399,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 4,
+        "type": "SLOW_RESPONSE",
+        "latency": 36720,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 5,
+        "type": "SLOW_RESPONSE",
+        "latency": 33357,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 6,
+        "type": "API_FAILURE",
+        "detail": "ALL_MODELS_FAILED"
+      }
+    ]
+  },
+  {
+    "pathology": "fibromyalgie",
+    "name": "Fibromyalgie",
+    "exchanges": 6,
+    "successes": 6,
+    "empty_responses": 0,
+    "json_errors": 0,
+    "api_failures": 0,
+    "timeouts": 0,
+    "latencies": [
+      16431,
+      18284,
+      16279,
+      21173,
+      26311,
+      29022
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 2,
+        "question_num": 2,
+        "phase": 1,
+        "progress": 10
+      },
+      {
+        "exchange": 3,
+        "question_num": 3,
+        "phase": 1,
+        "progress": 15
+      },
+      {
+        "exchange": 4,
+        "question_num": 4,
+        "phase": 1,
+        "progress": 20
+      },
+      {
+        "exchange": 5,
+        "question_num": 5,
+        "phase": 1,
+        "progress": 25
+      },
+      {
+        "exchange": 6,
+        "question_num": 6,
+        "phase": 1,
+        "progress": 30
+      }
+    ],
+    "red_flags_detected": [],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 16431,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "SLOW_RESPONSE",
+        "latency": 18284,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 3,
+        "type": "SLOW_RESPONSE",
+        "latency": 16279,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 4,
+        "type": "SLOW_RESPONSE",
+        "latency": 21173,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 5,
+        "type": "SLOW_RESPONSE",
+        "latency": 26311,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 6,
+        "type": "SLOW_RESPONSE",
+        "latency": 29022,
+        "model": "ollama/qwen3:8b"
+      }
+    ]
+  },
+  {
+    "pathology": "postop_prothese",
+    "name": "Post-op prothèse hanche",
+    "exchanges": 6,
+    "successes": 5,
+    "empty_responses": 0,
+    "json_errors": 1,
+    "api_failures": 0,
+    "timeouts": 0,
+    "latencies": [
+      19039,
+      16457,
+      26571,
+      26519,
+      30667,
+      42185
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 3,
+        "question_num": 3,
+        "phase": 1,
+        "progress": 15
+      },
+      {
+        "exchange": 4,
+        "question_num": 4,
+        "phase": 1,
+        "progress": 20
+      },
+      {
+        "exchange": 5,
+        "question_num": 5,
+        "phase": 1,
+        "progress": 25
+      },
+      {
+        "exchange": 6,
+        "question_num": 7,
+        "phase": 2,
+        "progress": 30
+      }
+    ],
+    "red_flags_detected": [
+      "Opération récente",
+      "Arthrose sévère non répondant aux traitements",
+      "Opération récente",
+      "Douleur post-opératoire",
+      "Opération récente",
+      "Douleur post-opératoire",
+      "Opération récente",
+      "Douleur post-opératoire"
+    ],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 19039,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "JSON_PARSE_ERROR",
+        "detail": "Expected ',' or '}' after property value in JSON at position 229 (line 1 column 230)",
+        "raw": "{\"message\":\"Merci Gerard. Et depuis quand avez-vous des symptômes associés à cette opération ? 😊\",\"phase\":1,\"question_num\":2,\"red_flags\":[\"Opération récente\"],\"collected\":{\"motif_zone\":\"Opération han"
+      },
+      {
+        "exchange": 3,
+        "type": "SLOW_RESPONSE",
+        "latency": 26571,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 4,
+        "type": "SLOW_RESPONSE",
+        "latency": 26519,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 5,
+        "type": "SLOW_RESPONSE",
+        "latency": 30667,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 6,
+        "type": "SLOW_RESPONSE",
+        "latency": 42185,
+        "model": "ollama/qwen3:8b"
+      }
+    ]
+  },
+  {
+    "pathology": "canal_carpien",
+    "name": "Syndrome canal carpien",
+    "exchanges": 6,
+    "successes": 5,
+    "empty_responses": 0,
+    "json_errors": 0,
+    "api_failures": 1,
+    "timeouts": 0,
+    "latencies": [
+      29437,
+      25787,
+      27243,
+      34654,
+      23034
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 2,
+        "question_num": 2,
+        "phase": 1,
+        "progress": 10
+      },
+      {
+        "exchange": 3,
+        "question_num": 3,
+        "phase": 1,
+        "progress": 15
+      },
+      {
+        "exchange": 4,
+        "question_num": 4,
+        "phase": 1,
+        "progress": 20
+      },
+      {
+        "exchange": 5,
+        "question_num": 5,
+        "phase": 1,
+        "progress": 25
+      }
+    ],
+    "red_flags_detected": [],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 29437,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "SLOW_RESPONSE",
+        "latency": 25787,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 3,
+        "type": "SLOW_RESPONSE",
+        "latency": 27243,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 4,
+        "type": "SLOW_RESPONSE",
+        "latency": 34654,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 5,
+        "type": "SLOW_RESPONSE",
+        "latency": 23034,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 6,
+        "type": "API_FAILURE",
+        "detail": "ALL_MODELS_FAILED"
+      }
+    ]
+  },
+  {
+    "pathology": "entorse_cheville",
+    "name": "Entorse cheville récidivante",
+    "exchanges": 6,
+    "successes": 6,
+    "empty_responses": 0,
+    "json_errors": 0,
+    "api_failures": 0,
+    "timeouts": 0,
+    "latencies": [
+      35854,
+      25762,
+      29143,
+      34409,
+      29007,
+      32205
+    ],
+    "question_progression": [
+      {
+        "exchange": 1,
+        "question_num": 1,
+        "phase": 1,
+        "progress": 5
+      },
+      {
+        "exchange": 2,
+        "question_num": 2,
+        "phase": 1,
+        "progress": 10
+      },
+      {
+        "exchange": 3,
+        "question_num": 3,
+        "phase": 1,
+        "progress": 15
+      },
+      {
+        "exchange": 4,
+        "question_num": 4,
+        "phase": 1,
+        "progress": 20
+      },
+      {
+        "exchange": 5,
+        "question_num": 5,
+        "phase": 1,
+        "progress": 25
+      },
+      {
+        "exchange": 6,
+        "question_num": 6,
+        "phase": 1,
+        "progress": 30
+      }
+    ],
+    "red_flags_detected": [
+      "Risque de ligamentoplastie récidivante",
+      "Risque de ligamentoplastie récidivante",
+      "Risque de ligamentoplastie récidivante",
+      "Risque de ligamentoplastie récidivante",
+      "Récidive fréquente de torsion de cheville",
+      "Risque de ligamentoplastie récidivante",
+      "Récidive fréquente de torsion de cheville"
+    ],
+    "frictions": [
+      {
+        "exchange": 1,
+        "type": "SLOW_RESPONSE",
+        "latency": 35854,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 2,
+        "type": "SLOW_RESPONSE",
+        "latency": 25762,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 3,
+        "type": "SLOW_RESPONSE",
+        "latency": 29143,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 4,
+        "type": "SLOW_RESPONSE",
+        "latency": 34409,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 5,
+        "type": "SLOW_RESPONSE",
+        "latency": 29007,
+        "model": "ollama/qwen3:8b"
+      },
+      {
+        "exchange": 6,
+        "type": "SLOW_RESPONSE",
+        "latency": 32205,
+        "model": "ollama/qwen3:8b"
+      }
+    ]
+  }
+]

@@ -4,7 +4,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0D57A6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Questionnaires KSLB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,6 +37,15 @@
       body {
         font-family: 'Inter', sans-serif;
         background-color: #f8fafc;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      /* Safe area insets for notched phones (iPhone X+) */
+      .safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      .safe-top {
+        padding-top: env(safe-area-inset-top, 0px);
       }
       .scrollbar-hide::-webkit-scrollbar {
           display: none;
@@ -43,6 +55,7 @@
           scrollbar-width: none;
       }
       
+      /* #M16 — Comprehensive print styles for SummaryPage */
       @media print {
         .no-print {
           display: none !important;
@@ -51,14 +64,60 @@
           background-color: white !important;
           padding: 0;
           margin: 0;
+          font-size: 11pt;
+          line-height: 1.4;
           -webkit-print-color-adjust: exact;
           color-adjust: exact;
+          print-color-adjust: exact;
         }
         main {
           margin: 0 !important;
           padding: 0 !important;
           max-width: 100% !important;
           box-shadow: none !important;
+        }
+        /* Remove shadows, rounded corners, and excessive spacing */
+        #print-area * {
+          box-shadow: none !important;
+        }
+        #print-area section {
+          break-inside: avoid;
+          page-break-inside: avoid;
+          margin-bottom: 12pt;
+        }
+        #print-area .p-4 {
+          padding: 8pt !important;
+        }
+        /* Keep score cards together */
+        #print-area .grid > div {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+        /* Force backgrounds on score indicators */
+        #print-area .bg-green-100,
+        #print-area .bg-yellow-100,
+        #print-area .bg-red-100,
+        #print-area .bg-blue-100,
+        #print-area .bg-orange-100 {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        /* Page header spacing */
+        #print-area header {
+          margin-bottom: 16pt;
+        }
+        /* Section headers: force border color */
+        #print-area h3 {
+          border-color: #1565C0 !important;
+        }
+        /* Links → plain text */
+        a { text-decoration: none !important; color: inherit !important; }
+        /* Hide sticky nav bars */
+        .sticky { position: static !important; }
+        /* Page margins via @page */
+        @page {
+          margin: 1.5cm 1cm;
+          size: A4;
         }
       }
 

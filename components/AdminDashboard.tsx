@@ -19,9 +19,7 @@ import {
     downloadTextFile
 } from '../utils';
 import {
-    MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES,
-    MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX,
-    MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE,
+    MEDICAL_QUESTIONNAIRE,
 } from '../constants';
 import Logo from './Logo';
 
@@ -35,8 +33,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
     const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
     const [expandedBilanId, setExpandedBilanId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [refreshKey, setRefreshKey] = useState(0);
 
-    const patients = useMemo(() => StorageService.getPatients(), []);
+    const patients = useMemo(() => StorageService.getPatients(), [refreshKey]);
 
     const filteredPatients = useMemo(() => {
         if (!searchQuery.trim()) return patients;
@@ -62,6 +61,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
 
     const storageUsage = useMemo(() => StorageService.getStorageUsage(), []);
 
+    // #M07 — Human-readable step labels (hide technical names)
+    const stepLabels: Record<string, string> = {
+        medical: 'Anamnèse',
+        objectifs: 'Objectifs', had: 'HAD', amplitudes: 'Amplitudes',
+        oswestry: 'Oswestry', quebec: 'Québec', rolandmorris: 'Roland-Morris',
+        ndi: 'NDI', northwick: 'Northwick Park', copenhagen: 'Copenhagen',
+        dash: 'DASH', oss: 'OSS', spadi: 'SPADI', vas: 'EVA',
+        oswestryThoracic: 'Oswestry Thoracique',
+        ikdc: 'IKDC', lysholm: 'Lysholm', koos: 'KOOS',
+        oes: 'OES', prtee: 'PRTEE', prwe: 'PRWE', mhq: 'MHQ',
+        hoosps: 'HOOS-PS', harriship: 'Harris Hip', oxfordhip: 'Oxford Hip', hagos: 'HAGOS',
+        pfdi: 'PFDI', iciq: 'ICIQ', aofas: 'AOFAS', fadi: 'FADI',
+        ffir: 'FFIR', fogq: 'FOG-Q', fes: 'FES', fesi: 'FES-I',
+        berg: 'Berg', lefs: 'LEFS', jfls: 'JFLS', tmd: 'TMD', wpai: 'WPAI',
+        fabq: 'FABQ', pcs: 'PCS', csi: 'CSI', mmrc: 'mMRC', sgrq: 'SGRQ',
+    };
+    const getStepLabel = (step: string): string => {
+        if (step.startsWith('psfs_')) return `PSFS — ${step.replace('psfs_', '')}`;
+        return stepLabels[step] || step;
+    };
+
     const formatDate = (iso: string) =>
         new Date(iso).toLocaleDateString('fr-FR', {
             day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -79,9 +99,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
         text += `${'='.repeat(50)}\n\n`;
 
         const stepTextMap: Record<string, () => string> = {
-            medical1: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES),
-            medical2: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX),
-            medical3: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE),
+            medical: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE),
             objectifs: () => generateObjectifsText(a.objectifs, pi),
             had: () => generateHadText(a.had, pi),
             amplitudes: () => generateAmplitudesText(a.amplitudes, pi),
@@ -153,7 +171,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
         document.body.removeChild(link);
     };
 
+    const [showExportConfirm, setShowExportConfirm] = useState(false);
+
     const handleExportAllPatients = () => {
+        setShowExportConfirm(true);
+    };
+
+    const confirmExportAll = () => {
         const allData = patients.map(p => {
             const { pinHash, ...accountSafe } = p.account;
             return { account: accountSafe, completedBilans: p.completedBilans };
@@ -166,6 +190,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        setShowExportConfirm(false);
+        StorageService.auditLog('ADMIN_EXPORT_ALL', 'admin', `${patients.length} patients`);
     };
 
     const totalBilans = patients.reduce((sum, p) => sum + p.completedBilans.length, 0);
@@ -174,7 +200,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
         <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 space-y-6">
             {/* Header */}
             <div className="bg-gradient-to-r from-[#0D57A6] to-[#1565C0] p-6 rounded-2xl shadow-sm text-white">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/20 p-2 rounded-xl">
                             <Logo className="h-10 w-10" />
@@ -186,31 +212,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
                             </p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => { StorageService.invalidateCache(); setRefreshKey(k => k + 1); }}
+                            className="px-3 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-colors"
+                            title="Rafraîchir les données"
+                        >
+                            Rafraîchir
+                        </button>
                         <button
                             onClick={onPdfCatalog}
-                            className="px-4 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-colors"
+                            className="px-3 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-colors"
                         >
                             Catalogue PDF
                         </button>
                         <button
                             onClick={handleExportAllPatients}
-                            className="px-4 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-colors"
+                            className="px-3 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-colors"
                         >
                             Exporter tout
                         </button>
                         <button
                             onClick={onLogout}
-                            className="px-4 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-colors"
+                            className="px-3 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-colors"
                         >
-                            Deconnexion
+                            Déconnexion
                         </button>
                     </div>
                 </div>
             </div>
 
             {/* Stats cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-gray-100 text-center">
                     <p className="text-3xl font-bold text-[#0D57A6]">{patients.length}</p>
                     <p className="text-xs text-gray-500 mt-1">Patient{patients.length !== 1 ? 's' : ''}</p>
@@ -230,8 +263,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
                 <div className="md:col-span-1">
                     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                         <div className="p-4 border-b border-gray-100">
-                            <h3 className="font-bold text-gray-800 mb-3">Patients</h3>
+                            <label htmlFor="admin-search" className="font-bold text-gray-800 mb-3 block">Patients</label>
                             <input
+                                id="admin-search"
                                 type="text"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
@@ -288,7 +322,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
                                         </h3>
                                         <div className="mt-2 space-y-1 text-sm text-gray-600">
                                             <p>Date de naissance : {new Date(selectedPatient.account.dateNaissance).toLocaleDateString('fr-FR')}</p>
-                                            <p>N° Secu : {selectedPatient.account.numeroSecuriteSociale.replace(/(\d{1})(\d{2})(\d{2})(\d{2})(\d{3})(\d{3})(\d{2})/, '$1 $2 $3 $4 $5 $6 $7')}</p>
+                                            <p>N° Sécu : {selectedPatient.account.numeroSecuriteSociale.replace(/^(\d{1})\d{11}(\d{2})$/, '$1 ** ** ** *** **$2')}</p>
                                             <p>Inscrit le {formatDate(selectedPatient.account.createdAt)}</p>
                                         </div>
                                     </div>
@@ -312,10 +346,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
                                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                                     <p className="text-sm font-semibold text-amber-800">Bilan en cours</p>
                                     <p className="text-xs text-amber-700 mt-1">
-                                        Derniere modification : {formatDate(selectedPatient.inProgress.lastSavedAt)}
+                                        Dernière modification : {formatDate(selectedPatient.inProgress.lastSavedAt)}
                                     </p>
                                     <p className="text-xs text-amber-600 mt-0.5">
-                                        Etape : {selectedPatient.inProgress.currentStep} ({selectedPatient.inProgress.steps.indexOf(selectedPatient.inProgress.currentStep) + 1}/{selectedPatient.inProgress.steps.length})
+                                        Étape : {selectedPatient.inProgress.currentStep} ({selectedPatient.inProgress.steps.indexOf(selectedPatient.inProgress.currentStep) + 1}/{selectedPatient.inProgress.steps.length})
                                     </p>
                                 </div>
                             )}
@@ -360,8 +394,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
                                                         <div className="px-4 pb-4 pt-2 border-t border-gray-100">
                                                             <div className="flex flex-wrap gap-1.5 mb-4">
                                                                 {bilan.visibleSteps.filter(s => s !== 'summary').map(step => (
-                                                                    <span key={step} className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg uppercase">
-                                                                        {step}
+                                                                    <span key={step} className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg">
+                                                                        {getStepLabel(step)}
                                                                     </span>
                                                                 ))}
                                                             </div>
@@ -397,6 +431,34 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewBilan, onLogout, 
                     )}
                 </div>
             </div>
+            {/* Export confirmation modal (#C04) */}
+            {showExportConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" role="dialog" aria-modal="true" aria-labelledby="export-confirm-title">
+                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+                        <h3 id="export-confirm-title" className="text-lg font-bold text-gray-800 mb-2">Confirmer l'export</h3>
+                        <p className="text-sm text-gray-600 mb-1">
+                            Vous êtes sur le point d'exporter les données de <strong>{patients.length} patient{patients.length !== 1 ? 's' : ''}</strong> ({totalBilans} bilan{totalBilans !== 1 ? 's' : ''}).
+                        </p>
+                        <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg mb-4">
+                            ⚠️ Ce fichier contient des données de santé sensibles (RGPD). Assurez-vous de le stocker de manière sécurisée.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowExportConfirm(false)}
+                                className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={confirmExportAll}
+                                className="px-4 py-2 text-sm font-semibold text-white bg-[#1565C0] rounded-lg hover:bg-[#0D57A6] transition-colors"
+                            >
+                                Exporter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -8,6 +8,7 @@ interface AuthState {
     isAuthenticated: boolean;
     currentPatient: PatientRecord | null;
     isLoading: boolean;
+    sessionExpired: boolean; // #M03 — flag for user-visible expiry message
 }
 
 interface AuthContextValue extends AuthState {
@@ -16,6 +17,7 @@ interface AuthContextValue extends AuthState {
     loginByName: (nom: string, prenom: string, dob: string, pin: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
     refreshPatient: () => void;
+    clearSessionExpired: () => void; // #M03
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -25,16 +27,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: false,
         currentPatient: null,
         isLoading: true,
+        sessionExpired: false,
     });
 
     // Check existing session on mount
     useEffect(() => {
         StorageService.checkAndMigrateVersion();
+
+        // DEV_BYPASS: ?dev=patient or ?dev=admin in URL skips auth
+        if (import.meta.env.DEV) {
+            const devMode = new URLSearchParams(window.location.search).get('dev');
+            if (devMode === 'patient' || devMode === 'admin') {
+                const devPatient: PatientRecord = {
+                    account: { id: 'dev-test-001', nom: 'Test', prenom: 'Dev', dateNaissance: '1990-01-01', numeroSecuriteSociale: '1900175000001', pinHash: 'fakehash', createdAt: new Date().toISOString() },
+                    completedBilans: [], inProgress: null
+                };
+                setState({ isAuthenticated: true, currentPatient: devPatient, isLoading: false, sessionExpired: false });
+                return;
+            }
+        }
+
+        // #M03 — Detect expired session to show user-visible message
+        const rawSession = StorageService.getSession();
         const patient = AuthService.getCurrentPatient();
         if (patient) {
-            setState({ isAuthenticated: true, currentPatient: patient, isLoading: false });
+            setState({ isAuthenticated: true, currentPatient: patient, isLoading: false, sessionExpired: false });
         } else {
-            setState({ isAuthenticated: false, currentPatient: null, isLoading: false });
+            // If there was a stored session but getCurrentPatient returned null → session expired
+            const expired = rawSession !== null && patient === null;
+            setState({ isAuthenticated: false, currentPatient: null, isLoading: false, sessionExpired: expired });
         }
     }, []);
 
@@ -75,8 +96,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout = useCallback(() => {
         AuthService.logout();
         StorageService.invalidateCache();
-        setState({ isAuthenticated: false, currentPatient: null, isLoading: false });
+        setState({ isAuthenticated: false, currentPatient: null, isLoading: false, sessionExpired: false });
     }, []);
+
+    // #M03 — Allow LoginPage to clear the expired message after user sees it
+    const clearSessionExpired = useCallback(() => {
+        setState(prev => ({ ...prev, sessionExpired: false }));
+    }, []);
+
+    // #M08 — Multi-tab localStorage sync: detect login/logout from another tab
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'kslb_session' || e.key === 'kslb_patients') {
+                const patient = AuthService.getCurrentPatient();
+                if (patient) {
+                    setState(prev => ({ ...prev, isAuthenticated: true, currentPatient: patient, sessionExpired: false }));
+                } else if (state.isAuthenticated) {
+                    // Another tab logged out or session was cleared
+                    StorageService.invalidateCache();
+                    setState({ isAuthenticated: false, currentPatient: null, isLoading: false, sessionExpired: false });
+                }
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [state.isAuthenticated]);
 
     return (
         <AuthContext.Provider value={{
@@ -86,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             loginByName,
             logout,
             refreshPatient,
+            clearSessionExpired,
         }}>
             {children}
         </AuthContext.Provider>

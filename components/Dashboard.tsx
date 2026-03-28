@@ -322,7 +322,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
     const handleDownloadPDF = async () => {
         if (selectedIds.length === 0) return;
         setIsGenerating(true);
-        
+
+        // #C12 — Transliterate French accents for Helvetica encoding (WinAnsi subset)
+        const safeText = (str: string): string => {
+            const map: Record<string, string> = {
+                'À': 'A', 'Â': 'A', 'Ä': 'A', 'Ç': 'C', 'É': 'E', 'È': 'E', 'Ê': 'E', 'Ë': 'E',
+                'Î': 'I', 'Ï': 'I', 'Ô': 'O', 'Ö': 'O', 'Ù': 'U', 'Û': 'U', 'Ü': 'U', 'Ÿ': 'Y',
+                'à': 'a', 'â': 'a', 'ä': 'a', 'ç': 'c', 'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+                'î': 'i', 'ï': 'i', 'ô': 'o', 'ö': 'o', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ÿ': 'y',
+                'Œ': 'OE', 'œ': 'oe', '«': '"', '»': '"', '\u2019': "'", '\u2018': "'",
+                '\u2013': '-', '\u2014': '-', '\u2026': '...', '\u00b0': 'o',
+            };
+            return str.replace(/[^\x00-\x7F]/g, ch => map[ch] || ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '') || '?');
+        };
+
         try {
             const { PDFDocument, rgb, StandardFonts } = PDFLib;
             const pdfDoc = await PDFDocument.create();
@@ -343,7 +356,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                     page = pdfDoc.addPage([595.28, 841.89]);
                     cursorY = 800;
                     pageNumber++;
-                    page.drawText(`${qDef.title} - Page ${pageNumber}`, { x: 50, y: cursorY, size: 8, font: font, color: rgb(0.6, 0.6, 0.6) });
+                    page.drawText(safeText(`${qDef.title} - Page ${pageNumber}`), { x: 50, y: cursorY, size: 8, font: font, color: rgb(0.6, 0.6, 0.6) });
                     cursorY -= 30;
                 };
 
@@ -354,13 +367,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                 };
 
                 // HEADER
-                page.drawText(qDef.title.toUpperCase(), { x: 50, y: cursorY, size: 18, font: fontBold, color: rgb(0.05, 0.34, 0.65) });
+                page.drawText(safeText(qDef.title.toUpperCase()), { x: 50, y: cursorY, size: 18, font: fontBold, color: rgb(0.05, 0.34, 0.65) });
                 cursorY -= 18;
                 
                 // Description
                 const descLines = qDef.description.match(/.{1,100}/g) || [];
                 descLines.forEach(line => {
-                    page.drawText(line, { x: 50, y: cursorY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
+                    page.drawText(safeText(line), { x: 50, y: cursorY, size: 9, font: font, color: rgb(0.3, 0.3, 0.3) });
                     cursorY -= 12;
                 });
                 cursorY -= 10;
@@ -368,17 +381,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                 // INSTRUCTIONS BOX (MODIFICATION DEMANDÉE)
                 checkSpace(60);
                 page.drawRectangle({ x: 50, y: cursorY - 35, width: 500, height: 40, color: rgb(0.96, 0.97, 1), borderColor: rgb(0.8, 0.85, 0.9), borderWidth: 1 });
-                page.drawText("NOTICE DE REMPLISSAGE :", { x: 60, y: cursorY - 12, size: 7, font: fontBold, color: rgb(0.1, 0.3, 0.6) });
+                page.drawText(safeText("NOTICE DE REMPLISSAGE :"), { x: 60, y: cursorY - 12, size: 7, font: fontBold, color: rgb(0.1, 0.3, 0.6) });
                 
                 const instrLines = qDef.instructions.match(/.{1,110}/g) || [];
                 instrLines.slice(0, 2).forEach((line, i) => {
-                    page.drawText(line, { x: 60, y: cursorY - 24 - (i * 10), size: 8, font: fontItalic, color: rgb(0.2, 0.2, 0.2) });
+                    page.drawText(safeText(line), { x: 60, y: cursorY - 24 - (i * 10), size: 8, font: fontItalic, color: rgb(0.2, 0.2, 0.2) });
                 });
                 cursorY -= 55;
 
                 // PATIENT BOX
                 page.drawRectangle({ x: 50, y: cursorY - 40, width: 500, height: 40, borderColor: rgb(0.9, 0.9, 0.9), borderWidth: 1, color: rgb(0.98, 0.99, 1) });
-                page.drawText("NOM & PRÉNOM :", { x: 60, y: cursorY - 12, size: 6, font: fontBold, color: rgb(0.5, 0.5, 0.5) });
+                page.drawText(safeText("NOM & PRENOM :"), { x: 60, y: cursorY - 12, size: 6, font: fontBold, color: rgb(0.5, 0.5, 0.5) });
                 const nameField = form.createTextField(`${id}.name.p${pageNumber}`);
                 nameField.addToPage(page, { x: 60, y: cursorY - 32, width: 280, height: 16 });
                 
@@ -395,13 +408,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                         checkSpace(25);
                         const cb = form.createCheckBox(`${id}.q${idx}.check`);
                         cb.addToPage(page, { x: 50, y: cursorY - 12, width: 12, height: 12 });
-                        page.drawText(qText.substring(0, 120), { x: 70, y: cursorY - 10, size: 9, font: font });
+                        page.drawText(safeText(qText.substring(0, 120)), { x: 70, y: cursorY - 10, size: 9, font: font });
                         cursorY -= 20;
                         return;
                     }
 
                     checkSpace(80);
-                    page.drawText(`${idx + 1}. ${qText.substring(0, 95)}`, { x: 50, y: cursorY, size: 10, font: fontBold });
+                    page.drawText(safeText(`${idx + 1}. ${qText.substring(0, 95)}`), { x: 50, y: cursorY, size: 10, font: fontBold });
                     cursorY -= 15;
 
                     if (q.type === 'anatomy-selector') {
@@ -412,10 +425,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                             const col = zIdx % 4;
                             const cb = form.createCheckBox(`${id}.q${idx}.z${zIdx}`);
                             cb.addToPage(page, { x: 60 + (col * colWidth), y: cursorY - 12 - (row * 15), width: 10, height: 10 });
-                            page.drawText(zone, { x: 75 + (col * colWidth), y: cursorY - 10 - (row * 15), size: 7, font: font });
+                            page.drawText(safeText(zone), { x: 75 + (col * colWidth), y: cursorY - 10 - (row * 15), size: 7, font: font });
                         });
                         cursorY -= 20 + (Math.ceil(zones.length / 4) * 15);
-                        page.drawText("Précisez :", { x: 60, y: cursorY, size: 7, font: font, color: rgb(0.5, 0.5, 0.5) });
+                        page.drawText(safeText("Precisez :"), { x: 60, y: cursorY, size: 7, font: font, color: rgb(0.5, 0.5, 0.5) });
                         const tf = form.createTextField(`${id}.q${idx}.anatomy_text`);
                         tf.addToPage(page, { x: 100, y: cursorY - 3, width: 450, height: 12 });
                         cursorY -= 25;
@@ -430,7 +443,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                         page.drawText("NON", { x: 135, y: cursorY - 8, size: 8, font: font });
 
                         if (q.type === 'yes-no-specify') {
-                            page.drawText("Détails :", { x: 180, y: cursorY - 8, size: 7, font: font, color: rgb(0.4, 0.4, 0.4) });
+                            page.drawText(safeText("Details :"), { x: 180, y: cursorY - 8, size: 7, font: font, color: rgb(0.4, 0.4, 0.4) });
                             const tf = form.createTextField(`${id}.q${idx}.spec`);
                             tf.addToPage(page, { x: 220, y: cursorY - 12, width: 330, height: 14 });
                         }
@@ -443,7 +456,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                             const label = typeof opt === 'string' ? opt : (opt.text || opt.label);
                             const cb = form.createCheckBox(`${id}.q${idx}.opt${oIdx}`);
                             cb.addToPage(page, { x: 65, y: cursorY - 10, width: 10, height: 10 });
-                            page.drawText(label.substring(0, 115), { x: 80, y: cursorY - 8, size: 8, font: font });
+                            page.drawText(safeText(label.substring(0, 115)), { x: 80, y: cursorY - 8, size: 8, font: font });
                             cursorY -= 15;
                         });
                         cursorY -= 10;
@@ -460,7 +473,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                     qDef.questions.forEach((section: any, sIdx: number) => {
                         checkSpace(40);
                         page.drawRectangle({ x: 50, y: cursorY - 5, width: 500, height: 18, color: rgb(0.9, 0.92, 0.95) });
-                        page.drawText(`${sIdx + 1}. ${section.title.toUpperCase()}`, { x: 55, y: cursorY + 2, size: 9, font: fontBold });
+                        page.drawText(safeText(`${sIdx + 1}. ${section.title.toUpperCase()}`), { x: 55, y: cursorY + 2, size: 9, font: fontBold });
                         cursorY -= 30;
                         section.questions.forEach((q: any) => {
                             drawQuestion(q, qIdxGlobal++);
@@ -475,7 +488,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                 }
 
                 // FOOTER
-                page.drawText(`Document généré par KSLB - Questionnaire Interactif - ${new Date().toLocaleDateString()}`, { x: 50, y: 30, size: 7, font: font, color: rgb(0.7, 0.7, 0.7) });
+                page.drawText(safeText(`Document genere par KSLB - Questionnaire Interactif - ${new Date().toLocaleDateString()}`), { x: 50, y: 30, size: 7, font: font, color: rgb(0.7, 0.7, 0.7) });
             }
 
             const pdfBytes = await pdfDoc.save();

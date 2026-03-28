@@ -10,7 +10,7 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
-    const { register, login, loginByName } = useAuth();
+    const { register, login, loginByName, sessionExpired, clearSessionExpired } = useAuth();
     const [view, setView] = useState<View>('login');
     const [loginMode, setLoginMode] = useState<LoginMode>('numSecu');
     const [error, setError] = useState('');
@@ -104,17 +104,25 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
         <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
-                    <div className="flex justify-center mb-4">
-                        <Logo className="h-24 w-auto" />
+                    <div className="flex justify-center mb-3 sm:mb-4">
+                        <Logo className="h-16 sm:h-24 w-auto" />
                     </div>
-                    <h1 className="text-2xl font-bold text-[#0D57A6]">Questionnaires KSLB</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#0D57A6]">Questionnaires KSLB</h1>
                     <p className="text-gray-500 mt-1 text-sm">
-                        {view === 'login' ? 'Connectez-vous pour acceder a vos bilans' : 'Creez votre compte patient'}
+                        {view === 'login' ? 'Connectez-vous pour accéder à vos bilans' : 'Créez votre compte patient'}
                     </p>
                 </div>
 
+                {/* #M03 — Session expiry banner */}
+                {sessionExpired && (
+                    <div role="alert" className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm flex items-center justify-between">
+                        <span>Votre session a expiré. Veuillez vous reconnecter.</span>
+                        <button onClick={clearSessionExpired} className="ml-2 text-amber-600 hover:text-amber-800 font-bold text-lg leading-none" aria-label="Fermer">&times;</button>
+                    </div>
+                )}
+
                 {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                    <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                         {error}
                     </div>
                 )}
@@ -128,7 +136,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
                                 onClick={() => { setLoginMode('numSecu'); setError(''); }}
                                 className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${loginMode === 'numSecu' ? 'bg-white text-[#0D57A6] shadow-sm' : 'text-gray-500'}`}
                             >
-                                N° Securite Sociale
+                                N° Sécurité Sociale
                             </button>
                             <button
                                 type="button"
@@ -141,8 +149,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
 
                         {loginMode === 'numSecu' ? (
                             <div>
-                                <label className={labelClass}>Numero de Securite Sociale</label>
+                                <label htmlFor="login-numsecu" className={labelClass}>Numéro de Sécurité Sociale</label>
                                 <input
+                                    id="login-numsecu"
                                     type="text"
                                     value={loginNumSecu}
                                     onChange={e => handleNumSecuChange(e.target.value, setLoginNumSecu)}
@@ -158,23 +167,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
                         ) : (
                             <>
                                 <div>
-                                    <label className={labelClass}>Nom</label>
-                                    <input type="text" value={loginNom} onChange={e => setLoginNom(e.target.value)} className={inputClass} autoComplete="family-name" />
+                                    <label htmlFor="login-nom" className={labelClass}>Nom</label>
+                                    <input id="login-nom" type="text" value={loginNom} onChange={e => setLoginNom(e.target.value)} className={inputClass} autoComplete="family-name" />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Prenom</label>
-                                    <input type="text" value={loginPrenom} onChange={e => setLoginPrenom(e.target.value)} className={inputClass} autoComplete="given-name" />
+                                    <label htmlFor="login-prenom" className={labelClass}>Prénom</label>
+                                    <input id="login-prenom" type="text" value={loginPrenom} onChange={e => setLoginPrenom(e.target.value)} className={inputClass} autoComplete="given-name" />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Date de naissance</label>
-                                    <input type="date" value={loginDob} onChange={e => setLoginDob(e.target.value)} className={inputClass} />
+                                    <label htmlFor="login-dob" className={labelClass}>Date de naissance</label>
+                                    <input id="login-dob" type="date" value={loginDob} onChange={e => setLoginDob(e.target.value)} className={inputClass} />
                                 </div>
                             </>
                         )}
 
                         <div>
-                            <label className={labelClass}>Code PIN (4 chiffres)</label>
+                            <label htmlFor="login-pin" className={labelClass}>Code PIN (4 chiffres)</label>
                             <input
+                                id="login-pin"
                                 type="password"
                                 value={loginPin}
                                 onChange={e => handlePinChange(e.target.value, setLoginPin)}
@@ -197,7 +207,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
                         <p className="text-center text-sm text-gray-500">
                             Pas encore inscrit ?{' '}
                             <button type="button" onClick={() => { setView('register'); setError(''); }} className="text-[#1565C0] font-semibold hover:underline">
-                                Creer un compte
+                                Créer un compte
                             </button>
                         </p>
                     </form>
@@ -205,23 +215,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
                     <form onSubmit={handleRegister} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className={labelClass}>Prenom</label>
-                                <input type="text" value={regPrenom} onChange={e => setRegPrenom(e.target.value)} className={inputClass} autoComplete="given-name" />
+                                <label htmlFor="reg-prenom" className={labelClass}>Prénom</label>
+                                <input id="reg-prenom" type="text" value={regPrenom} onChange={e => setRegPrenom(e.target.value)} className={inputClass} autoComplete="given-name" />
                             </div>
                             <div>
-                                <label className={labelClass}>Nom</label>
-                                <input type="text" value={regNom} onChange={e => setRegNom(e.target.value)} className={inputClass} autoComplete="family-name" />
+                                <label htmlFor="reg-nom" className={labelClass}>Nom</label>
+                                <input id="reg-nom" type="text" value={regNom} onChange={e => setRegNom(e.target.value)} className={inputClass} autoComplete="family-name" />
                             </div>
                         </div>
 
                         <div>
-                            <label className={labelClass}>Date de naissance</label>
-                            <input type="date" value={regDob} onChange={e => setRegDob(e.target.value)} className={inputClass} />
+                            <label htmlFor="reg-dob" className={labelClass}>Date de naissance</label>
+                            <input id="reg-dob" type="date" value={regDob} onChange={e => setRegDob(e.target.value)} className={inputClass} />
                         </div>
 
                         <div>
-                            <label className={labelClass}>Numero de Securite Sociale</label>
+                            <label htmlFor="reg-numsecu" className={labelClass}>Numéro de Sécurité Sociale</label>
                             <input
+                                id="reg-numsecu"
                                 type="text"
                                 value={regNumSecu}
                                 onChange={e => handleNumSecuChange(e.target.value, setRegNumSecu)}
@@ -237,8 +248,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className={labelClass}>Code PIN</label>
+                                <label htmlFor="reg-pin" className={labelClass}>Code PIN</label>
                                 <input
+                                    id="reg-pin"
                                     type="password"
                                     value={regPin}
                                     onChange={e => handlePinChange(e.target.value, setRegPin)}
@@ -250,8 +262,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>Confirmer PIN</label>
+                                <label htmlFor="reg-pin-confirm" className={labelClass}>Confirmer PIN</label>
                                 <input
+                                    id="reg-pin-confirm"
                                     type="password"
                                     value={regPinConfirm}
                                     onChange={e => handlePinChange(e.target.value, setRegPinConfirm)}
@@ -272,11 +285,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
                             disabled={isSubmitting}
                             className="w-full px-6 py-3 text-base font-semibold text-white bg-[#1565C0] rounded-lg shadow-sm hover:bg-[#0D57A6] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1565C0] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? 'Inscription...' : 'Creer mon compte'}
+                            {isSubmitting ? 'Inscription...' : 'Créer mon compte'}
                         </button>
 
                         <p className="text-center text-sm text-gray-500">
-                            Deja inscrit ?{' '}
+                            Déjà inscrit ?{' '}
                             <button type="button" onClick={() => { setView('login'); setError(''); }} className="text-[#1565C0] font-semibold hover:underline">
                                 Se connecter
                             </button>
@@ -284,14 +297,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onAdminAccess }) => {
                     </form>
                 )}
 
+                {/* #M31 — Admin link: improved visibility & accessibility */}
                 {onAdminAccess && (
                     <div className="mt-6 text-center">
                         <button
                             type="button"
                             onClick={onAdminAccess}
-                            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                            className="text-xs text-gray-500 hover:text-[#1565C0] underline underline-offset-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[#1565C0] focus:ring-offset-2 rounded"
+                            aria-label="Accéder à l'espace administrateur"
                         >
-                            Acces administrateur
+                            Accès administrateur
                         </button>
                     </div>
                 )}

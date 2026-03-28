@@ -167,3 +167,46 @@ export function checkAndMigrateVersion(): void {
 export function invalidateCache(): void {
     patientsCache = null;
 }
+
+// ---- Audit Log Stub (#M10) ----
+// Structured audit trail for security-sensitive actions.
+// Currently writes to console; future: persist to localStorage or remote endpoint.
+
+interface AuditEntry {
+    timestamp: string;
+    action: string;
+    actor: string;       // 'admin' | patientId
+    details?: string;
+}
+
+const AUDIT_LOG_KEY = 'kslb_audit_log';
+const MAX_AUDIT_ENTRIES = 200;
+
+export function auditLog(action: string, actor: string, details?: string): void {
+    const entry: AuditEntry = {
+        timestamp: new Date().toISOString(),
+        action,
+        actor,
+        details,
+    };
+    if (process.env.NODE_ENV === 'development') {
+        console.info('[KSLB Audit]', entry);
+    }
+    try {
+        const raw = localStorage.getItem(AUDIT_LOG_KEY);
+        const log: AuditEntry[] = raw ? JSON.parse(raw) : [];
+        log.push(entry);
+        // Keep only the last MAX_AUDIT_ENTRIES
+        if (log.length > MAX_AUDIT_ENTRIES) {
+            log.splice(0, log.length - MAX_AUDIT_ENTRIES);
+        }
+        localStorage.setItem(AUDIT_LOG_KEY, JSON.stringify(log));
+    } catch { /* localStorage full or unavailable — ignore silently */ }
+}
+
+export function getAuditLog(): AuditEntry[] {
+    try {
+        const raw = localStorage.getItem(AUDIT_LOG_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}

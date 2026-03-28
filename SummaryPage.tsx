@@ -5,9 +5,7 @@ import {
     ALL_FABQ_QUESTIONS, 
     SCORE_SCALE_WORK_ITEMS, 
     SCORE_SCALE_PHYSICAL_ACTIVITY_ITEMS, 
-    MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES,
-    MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX,
-    MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE,
+    MEDICAL_QUESTIONNAIRE,
     PCS_QUESTIONS_FR,
     CSI_PART_A_QUESTIONS_FR,
     CSI_PART_B_QUESTIONS_FR,
@@ -292,9 +290,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
     const wasFabqFilled = Object.values(fabqAnswers).some(a => a !== null);
     const wasPcsFilled = Object.values(pcsAnswers).some(a => a !== null);
     const wasCsiFilled = Object.values(csiPartAAnswers).some(a => a !== null);
-    const wasMedical1Filled = MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
-    const wasMedical2Filled = MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
-    const wasMedical3Filled = MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
+    const wasMedicalFilled = MEDICAL_QUESTIONNAIRE.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
     const wasAmplitudesFilled = Object.keys(amplitudesAnswers).length > 0;
     const wasObjectifsFilled = objectifsAnswers && Object.values(objectifsAnswers).some(a => (Array.isArray(a) && a.length > 0 && a.some(i => i !== '')) || (typeof a === 'string' && a !== '') || (a !== null && typeof a === 'object' && !Array.isArray(a) && Object.keys(a).length > 0));
     const wasNdiFilled = ndiAnsweredSections === NDI_QUESTIONS_FR.length;
@@ -363,11 +359,9 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             FOGQ: 'Equilibre_Marche', FES: 'Equilibre_Marche', 'FES-I': 'Equilibre_Marche', Berg: 'Equilibre_Marche',
             mMRC: 'Respiratoire', SGRQ: 'Respiratoire',
         };
-        const generalQuestionnaireNames = ['Medical_1', 'Medical_2', 'Medical_3', 'Amplitudes', 'FABQ', 'PCS', 'CSI', 'WPAI', 'Objectifs'];
+        const generalQuestionnaireNames = ['Anamnèse', 'Amplitudes', 'FABQ', 'PCS', 'CSI', 'WPAI', 'Objectifs'];
         const allQuestionnaires = [
-            { name: 'Medical_1', filled: wasMedical1Filled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES) },
-            { name: 'Medical_2', filled: wasMedical2Filled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX) },
-            { name: 'Medical_3', filled: wasMedical3Filled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE) },
+            { name: 'Anamnèse', filled: wasMedicalFilled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE) },
             { name: 'Amplitudes', filled: wasAmplitudesFilled, isComplete: wasAmplitudesFilled, content: () => generateAmplitudesText(amplitudesAnswers, patientInfo) },
             { name: 'Oswestry', filled: Object.values(oswestryAnswers).some(a=>a!==null), isComplete: wasOswestryFilled, content: () => generateOswestryText(oswestryAnswers, patientInfo) },
             { name: 'Quebec', filled: Object.values(quebecAnswers).some(a=>a!==null), isComplete: wasQuebecFilled, content: () => generateQuebecText(quebecAnswers, patientInfo) },
@@ -413,7 +407,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         ];
         
         const stepToQuestionnaireName: { [key in Step]?: string } = {
-            medical1: 'Medical_1', medical2: 'Medical_2', medical3: 'Medical_3',
+            medical: 'Anamnèse',
             amplitudes: 'Amplitudes', oswestry: 'Oswestry', quebec: 'Quebec',
             rolandmorris: 'RolandMorris', ndi: 'NDI', northwick: 'NorthwickPark',
             copenhagen: 'Copenhagen', dash: 'DASH', oss: 'OSS', spadi: 'SPADI',

@@ -20,18 +20,17 @@ import {
     downloadTextFile
 } from '../utils';
 import {
-    MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES,
-    MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX,
-    MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE,
+    MEDICAL_QUESTIONNAIRE,
 } from '../constants';
 import Logo from './Logo';
 
 interface PatientDashboardProps {
     onStartBilan: () => void;
+    onStartClassicBilan?: () => void;
     onViewSummary: (bilan: CompletedBilan) => void;
 }
 
-const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onViewSummary }) => {
+const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onStartClassicBilan, onViewSummary }) => {
     const { currentPatient, logout, refreshPatient } = useAuth();
     const { state: bilanState, resumeBilan, resetBilan, startNewBilan } = useBilan();
     const [expandedBilanId, setExpandedBilanId] = useState<string | null>(null);
@@ -47,6 +46,16 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onVie
 
     const storageUsage = useMemo(() => StorageService.getStorageUsage(), [bilans.length]);
 
+    // #M08, M17, M30 — Replace confirm() with modal
+    const [confirmModal, setConfirmModal] = useState<{
+        message: string;
+        onConfirm: () => void;
+    } | null>(null);
+
+    const showConfirm = (message: string, onConfirm: () => void) => {
+        setConfirmModal({ message, onConfirm });
+    };
+
     const handleResume = () => {
         if (inProgress) {
             resumeBilan(inProgress);
@@ -55,16 +64,22 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onVie
     };
 
     const handleAbandon = () => {
-        if (confirm('Abandonner le bilan en cours ? Les donnees non terminees seront perdues.')) {
+        showConfirm('Abandonner le bilan en cours ? Les données non terminées seront perdues.', () => {
             resetBilan();
             refreshPatient();
-        }
+            setConfirmModal(null);
+        });
     };
 
     const handleNewBilan = () => {
         if (inProgress) {
-            if (!confirm('Vous avez un bilan en cours. L\'abandonner pour en commencer un nouveau ?')) return;
-            resetBilan();
+            showConfirm('Vous avez un bilan en cours. L\'abandonner pour en commencer un nouveau ?', () => {
+                resetBilan();
+                startNewBilan();
+                onStartBilan();
+                setConfirmModal(null);
+            });
+            return;
         }
         startNewBilan();
         onStartBilan();
@@ -80,9 +95,7 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onVie
             text += `${'='.repeat(50)}\n\n`;
 
             const stepTextMap: Record<string, () => string> = {
-                medical1: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES),
-                medical2: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX),
-                medical3: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE),
+                medical: () => generateMedicalText(a.medical, pi, MEDICAL_QUESTIONNAIRE),
                 objectifs: () => generateObjectifsText(a.objectifs, pi),
                 had: () => generateHadText(a.had, pi),
                 amplitudes: () => generateAmplitudesText(a.amplitudes, pi),
@@ -172,9 +185,11 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onVie
 
     const handleDeleteBilan = (bilanId: string) => {
         if (!currentPatient) return;
-        if (!confirm('Supprimer ce bilan ? Cette action est irreversible.')) return;
-        StorageService.deleteCompletedBilan(currentPatient.account.id, bilanId);
-        refreshPatient();
+        showConfirm('Supprimer ce bilan ? Cette action est irréversible.', () => {
+            StorageService.deleteCompletedBilan(currentPatient.account.id, bilanId);
+            refreshPatient();
+            setConfirmModal(null);
+        });
     };
 
     const formatDate = (iso: string) => {
@@ -191,58 +206,66 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onVie
 
     return (
         <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 space-y-6">
-            {/* Header */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Logo className="h-12 w-12" />
+            {/* Header — #M29 responsive on mobile */}
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <Logo className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0" />
                         <div>
-                            <h2 className="text-xl font-bold text-[#0D57A6]">
+                            <h2 className="text-lg sm:text-xl font-bold text-[#0D57A6]">
                                 Bienvenue, {account.prenom}
                             </h2>
-                            <p className="text-sm text-gray-500">{bilans.length} bilan{bilans.length !== 1 ? 's' : ''} enregistre{bilans.length !== 1 ? 's' : ''}</p>
+                            <p className="text-xs sm:text-sm text-gray-500">{bilans.length} bilan{bilans.length !== 1 ? 's' : ''} enregistré{bilans.length !== 1 ? 's' : ''}</p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             onClick={handleNewBilan}
-                            className="px-4 py-2 bg-[#1565C0] text-white text-sm font-bold rounded-xl hover:bg-[#0D57A6] transition-colors"
+                            className="flex-1 min-w-[120px] sm:flex-none px-4 py-2.5 bg-[#25D366] text-white text-sm font-bold rounded-xl hover:bg-[#20bd5a] active:scale-95 transition-all"
                         >
                             Nouveau bilan
                         </button>
+                        {onStartClassicBilan && (
+                            <button
+                                onClick={onStartClassicBilan}
+                                className="flex-1 min-w-[120px] sm:flex-none px-4 py-2.5 bg-blue-50 text-[#0D57A6] text-sm font-medium rounded-xl border border-blue-200 hover:bg-blue-100 active:scale-95 transition-all"
+                            >
+                                Questionnaires
+                            </button>
+                        )}
                         <button
                             onClick={logout}
-                            className="px-4 py-2 bg-gray-100 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                            className="flex-1 min-w-[100px] sm:flex-none px-4 py-2.5 bg-gray-100 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-200 active:scale-95 transition-all"
                         >
-                            Deconnexion
+                            Déconnexion
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* In-progress banner */}
+            {/* In-progress banner — #M29 responsive */}
             {inProgress && (
-                <div className="bg-amber-50 border-2 border-amber-200 p-5 rounded-2xl">
-                    <div className="flex items-center justify-between">
+                <div className="bg-amber-50 border-2 border-amber-200 p-4 sm:p-5 rounded-2xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                             <h3 className="font-bold text-amber-800">Bilan en cours</h3>
                             <p className="text-sm text-amber-700 mt-1">
-                                Derniere modification : {formatDate(inProgress.lastSavedAt)}
+                                Dernière modification : {formatDate(inProgress.lastSavedAt)}
                             </p>
                             <p className="text-xs text-amber-600 mt-0.5">
-                                Etape actuelle : {inProgress.currentStep} ({inProgress.steps.indexOf(inProgress.currentStep)}/{inProgress.steps.length - 1})
+                                Étape actuelle : {inProgress.currentStep} ({inProgress.steps.indexOf(inProgress.currentStep)}/{inProgress.steps.length - 1})
                             </p>
                         </div>
                         <div className="flex gap-2">
                             <button
                                 onClick={handleResume}
-                                className="px-4 py-2 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 transition-colors"
+                                className="flex-1 sm:flex-none px-4 py-2 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 transition-colors"
                             >
                                 Reprendre
                             </button>
                             <button
                                 onClick={handleAbandon}
-                                className="px-4 py-2 bg-white text-amber-700 text-sm font-bold rounded-xl border border-amber-300 hover:bg-amber-50 transition-colors"
+                                className="flex-1 sm:flex-none px-4 py-2 bg-white text-amber-700 text-sm font-bold rounded-xl border border-amber-300 hover:bg-amber-50 transition-colors"
                             >
                                 Abandonner
                             </button>
@@ -334,8 +357,8 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onVie
                 )}
             </div>
 
-            {/* Footer */}
-            <div className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+            {/* Footer — #M29 responsive */}
+            <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <p className="text-xs text-gray-500">
                         Stockage : {storageUsage.usedKB} KB utilises ({storageUsage.percentage}%)
@@ -348,11 +371,35 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ onStartBilan, onVie
                 </div>
                 <button
                     onClick={handleExportAll}
-                    className="px-3 py-2 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                    className="w-full sm:w-auto px-3 py-2 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors"
                 >
                     Exporter toutes mes donnees
                 </button>
             </div>
+
+            {/* Confirmation modal (#M08, M17, M30) */}
+            {confirmModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+                        <h3 id="confirm-modal-title" className="text-lg font-bold text-gray-800 mb-3">Confirmation</h3>
+                        <p className="text-sm text-gray-600 mb-5">{confirmModal.message}</p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setConfirmModal(null)}
+                                className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={confirmModal.onConfirm}
+                                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                                Confirmer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

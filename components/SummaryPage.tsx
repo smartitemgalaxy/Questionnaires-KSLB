@@ -4,9 +4,7 @@ import {
     ALL_FABQ_QUESTIONS, 
     SCORE_SCALE_WORK_ITEMS, 
     SCORE_SCALE_PHYSICAL_ACTIVITY_ITEMS, 
-    MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES,
-    MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX,
-    MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE,
+    MEDICAL_QUESTIONNAIRE,
     PCS_QUESTIONS_FR,
     CSI_PART_A_QUESTIONS_FR,
     CSI_PART_B_QUESTIONS_FR,
@@ -107,27 +105,30 @@ interface SummaryPageProps {
     visibleSteps: Step[];
     onEditQuestionnaire: (step: Step) => void;
     onRestart: () => void;
+    readOnly?: boolean;
 }
 
-const ScoreCard: React.FC<{ title: string; score: number | null; maxScore?: number; completionText?: string; isComplete: boolean; onClick?: () => void; }> = ({ title, score, maxScore, completionText, isComplete, onClick }) => {
-    const WrapperComponent = isComplete ? 'div' : 'button';
+const ScoreCard: React.FC<{ title: string; score: number | null; maxScore?: number; completionText?: string; isComplete: boolean; onClick?: () => void; readOnly?: boolean; }> = ({ title, score, maxScore, completionText, isComplete, onClick, readOnly }) => {
+    const isClickable = !isComplete && !readOnly;
+    const WrapperComponent = isClickable ? 'button' : 'div';
 
     return (
         <WrapperComponent
-            onClick={!isComplete ? onClick : undefined}
+            onClick={isClickable ? onClick : undefined}
             className={`rounded-lg shadow p-6 flex flex-col items-center text-center transition-all duration-200 ${
-                !isComplete 
-                ? 'bg-red-50 border-2 border-red-300 hover:bg-red-100 cursor-pointer' 
+                !isComplete
+                ? (readOnly ? 'bg-orange-50 border-2 border-orange-200' : 'bg-red-50 border-2 border-red-300 hover:bg-red-100 cursor-pointer')
                 : 'bg-gray-50'
             }`}
         >
-            <h3 className={`text-lg font-semibold ${!isComplete ? 'text-red-700' : 'text-gray-600'}`}>{title}</h3>
-            <p className={`text-5xl font-bold my-2 ${!isComplete ? 'text-red-600' : 'text-blue-800'}`}>
+            <h3 className={`text-lg font-semibold ${!isComplete ? (readOnly ? 'text-orange-700' : 'text-red-700') : 'text-gray-600'}`}>{title}</h3>
+            <p className={`text-5xl font-bold my-2 ${!isComplete ? (readOnly ? 'text-orange-600' : 'text-red-600') : 'text-blue-800'}`}>
                 {score !== null ? score : '--'}
                 {maxScore !== undefined && <span className="text-2xl text-gray-400 font-normal"> / {maxScore}</span>}
             </p>
-            {completionText && <p className={`text-sm ${!isComplete ? 'text-red-500' : 'text-gray-500'}`}>{completionText}</p>}
-            {!isComplete && <p className="text-xs text-red-600 font-semibold mt-2">Questionnaire incomplet. Cliquez pour compléter.</p>}
+            {completionText && <p className={`text-sm ${!isComplete ? (readOnly ? 'text-orange-500' : 'text-red-500') : 'text-gray-500'}`}>{completionText}</p>}
+            {!isComplete && !readOnly && <p className="text-xs text-red-600 font-semibold mt-2">Questionnaire incomplet. Cliquez pour compléter.</p>}
+            {!isComplete && readOnly && <p className="text-xs text-orange-500 mt-2">Non complété lors de ce bilan</p>}
         </WrapperComponent>
     );
 };
@@ -140,11 +141,13 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
     ikdcAnswers, lysholmAnswers, koosAnswers, hoospsAnswers, harrisHipScoreAnswers, oxfordHipScoreAnswers, hagosAnswers,
     pfdiAnswers, iciqAnswers, aofasAnswers, fadiAnswers, ffirAnswers, fogqAnswers, fesAnswers, fesiAnswers, bergAnswers, lefsAnswers, jflsAnswers, tmdAnswers, wpaiAnswers,
     objectifsAnswers, amplitudesAnswers, mmrcAnswers, sgrqAnswers, psfsAnswers, hadAnswers,
-    visibleSteps, onEditQuestionnaire, onRestart 
+    visibleSteps, onEditQuestionnaire: onEditQuestionnaireRaw, onRestart, readOnly = false
 }) => {
+    const onEditQuestionnaire = readOnly ? () => {} : onEditQuestionnaireRaw;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [submissionMessage, setSubmissionMessage] = useState('');
+    const [showDriveConfirm, setShowDriveConfirm] = useState(false);
     
     const fabqScores = useMemo(() => {
         const workScore = SCORE_SCALE_WORK_ITEMS.reduce((sum, id) => sum + (fabqAnswers[id] || 0), 0);
@@ -292,9 +295,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
     const wasFabqFilled = Object.values(fabqAnswers).some(a => a !== null);
     const wasPcsFilled = Object.values(pcsAnswers).some(a => a !== null);
     const wasCsiFilled = Object.values(csiPartAAnswers).some(a => a !== null);
-    const wasMedical1Filled = MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
-    const wasMedical2Filled = MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
-    const wasMedical3Filled = MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
+    const wasMedicalFilled = MEDICAL_QUESTIONNAIRE.flatMap(s => s.questions).some(q => medicalAnswers[q.id]?.value !== null && medicalAnswers[q.id]?.value !== '');
     const wasAmplitudesFilled = Object.keys(amplitudesAnswers).length > 0;
     const wasObjectifsFilled = objectifsAnswers && Object.values(objectifsAnswers).some(a => (Array.isArray(a) && a.length > 0 && a.some(i => i !== '')) || (typeof a === 'string' && a !== '') || (a !== null && typeof a === 'object' && !Array.isArray(a) && Object.keys(a).length > 0));
     const wasNdiFilled = ndiAnsweredSections === NDI_QUESTIONS_FR.length;
@@ -343,7 +344,12 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
     const psfsInstances = Object.entries(psfsAnswers) as [string, PSFSAnswers][];
     const wasAnyPsfsFilled = psfsInstances.length > 0 && psfsInstances.some(([_, ans]) => ans.activities.some(a => a.description.trim() !== ''));
 
-    const handleSubmitToDrive = async () => {
+    const handleSubmitToDrive = () => {
+        setShowDriveConfirm(true);
+    };
+
+    const confirmSubmitToDrive = async () => {
+        setShowDriveConfirm(false);
         setIsSubmitting(true);
         setSubmissionStatus('idle');
         setSubmissionMessage('');
@@ -363,11 +369,9 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             FOGQ: 'Equilibre_Marche', FES: 'Equilibre_Marche', 'FES-I': 'Equilibre_Marche', Berg: 'Equilibre_Marche',
             mMRC: 'Respiratoire', SGRQ: 'Respiratoire',
         };
-        const generalQuestionnaireNames = ['Medical_1', 'Medical_2', 'Medical_3', 'Amplitudes', 'FABQ', 'PCS', 'CSI', 'WPAI', 'Objectifs', 'HAD'];
+        const generalQuestionnaireNames = ['Anamnèse', 'Amplitudes', 'FABQ', 'PCS', 'CSI', 'WPAI', 'Objectifs', 'HAD'];
         const allQuestionnaires = [
-            { name: 'Medical_1', filled: wasMedical1Filled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE_MOTIF_SYMPTOMES) },
-            { name: 'Medical_2', filled: wasMedical2Filled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE_ANTECEDENTS_MEDICAUX) },
-            { name: 'Medical_3', filled: wasMedical3Filled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE_CONTEXTE_VIE) },
+            { name: 'Anamnèse', filled: wasMedicalFilled, isComplete: true, content: () => generateMedicalText(medicalAnswers, patientInfo, MEDICAL_QUESTIONNAIRE) },
             { name: 'Amplitudes', filled: wasAmplitudesFilled, isComplete: wasAmplitudesFilled, content: () => generateAmplitudesText(amplitudesAnswers, patientInfo) },
             { name: 'Oswestry', filled: Object.values(oswestryAnswers).some(a=>a!==null), isComplete: wasOswestryFilled, content: () => generateOswestryText(oswestryAnswers, patientInfo) },
             { name: 'Quebec', filled: Object.values(quebecAnswers).some(a=>a!==null), isComplete: wasQuebecFilled, content: () => generateQuebecText(quebecAnswers, patientInfo) },
@@ -414,7 +418,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
         ];
         
         const stepToQuestionnaireName: { [key in Step]?: string } = {
-            medical1: 'Medical_1', medical2: 'Medical_2', medical3: 'Medical_3',
+            medical: 'Anamnèse',
             amplitudes: 'Amplitudes', oswestry: 'Oswestry', quebec: 'Quebec',
             rolandmorris: 'RolandMorris', ndi: 'NDI', northwick: 'NorthwickPark',
             copenhagen: 'Copenhagen', dash: 'DASH', oss: 'OSS', spadi: 'SPADI',
@@ -599,58 +603,58 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
                     <h3 className="text-xl font-bold text-gray-800 pb-2 mb-4 border-b-2 border-blue-800">Résultats des Questionnaires</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {/* Static Questionnaires */}
-                        {visibleSteps.includes('oswestry') && <ScoreCard title="Oswestry (Incapacité lombaire)" score={oswestryScore} maxScore={OSWESTRY_QUESTIONS_FR.length * 5} completionText={`${oswestryAnsweredSections}/${OSWESTRY_QUESTIONS_FR.length} sections répondues.`} isComplete={wasOswestryFilled} onClick={() => onEditQuestionnaire('oswestry')} />}
-                        {visibleSteps.includes('quebec') && <ScoreCard title="Québec (Dos)" score={quebecScore} maxScore={QUEBEC_QUESTIONS_FR.length * 5} isComplete={wasQuebecFilled} onClick={() => onEditQuestionnaire('quebec')} />}
-                        {visibleSteps.includes('rolandmorris') && <ScoreCard title="Roland-Morris (Dos)" score={rolandMorrisScore} maxScore={ROLAND_MORRIS_QUESTIONS_FR.length} isComplete={wasRolandMorrisFilled} onClick={() => onEditQuestionnaire('rolandmorris')} />}
-                        {visibleSteps.includes('ndi') && <ScoreCard title="NDI (Cervical)" score={ndiScore} maxScore={NDI_QUESTIONS_FR.length * 5} completionText={`${ndiAnsweredSections}/${NDI_QUESTIONS_FR.length} sections répondues.`} isComplete={wasNdiFilled} onClick={() => onEditQuestionnaire('ndi')} />}
-                        {visibleSteps.includes('northwick') && <ScoreCard title="Northwick Park (Cervical)" score={northwickScore} maxScore={(NORTHWICK_PARK_QUESTIONS_FR.length - 1) * 4} completionText={`${northwickAnsweredSections}/${NORTHWICK_PARK_QUESTIONS_FR.length - 1} sections répondues.`} isComplete={wasNorthwickFilled} onClick={() => onEditQuestionnaire('northwick')} />}
-                        {visibleSteps.includes('copenhagen') && <ScoreCard title="Copenhagen (Cervical)" score={copenhagenScore} maxScore={COPENHAGEN_QUESTIONS_FR.length * 2} isComplete={wasCopenhagenFilled} onClick={() => onEditQuestionnaire('copenhagen')} />}
-                        {visibleSteps.includes('dash') && <ScoreCard title="DASH (Membre Sup)" score={dashScore} maxScore={100} completionText={`${dashAnsweredCount}/${DASH_QUESTIONS_FR.length} questions répondues (min 27 requis).`} isComplete={wasDashFilled} onClick={() => onEditQuestionnaire('dash')} />}
-                        {visibleSteps.includes('oss') && <ScoreCard title="OSS (Épaule)" score={ossScore} maxScore={OSS_QUESTIONS_FR.length * 4} isComplete={wasOssFilled} onClick={() => onEditQuestionnaire('oss')} />}
-                        {visibleSteps.includes('spadi') && <ScoreCard title="SPADI (Douleur)" score={spadiPainScore} maxScore={50} isComplete={wasSpadiFilled} onClick={() => onEditQuestionnaire('spadi')} />}
-                        {visibleSteps.includes('spadi') && <ScoreCard title="SPADI (Incapacité)" score={spadiDisabilityScore} maxScore={80} isComplete={wasSpadiFilled} onClick={() => onEditQuestionnaire('spadi')} />}
-                        {visibleSteps.includes('oes') && <ScoreCard title="OES (Coude)" score={oesScore} maxScore={48} isComplete={wasOesFilled} onClick={() => onEditQuestionnaire('oes')} />}
-                        {visibleSteps.includes('prtee') && <ScoreCard title="PRTEE (Douleur)" score={prteeScores.pain} maxScore={50} isComplete={wasPrteeFilled} onClick={() => onEditQuestionnaire('prtee')} />}
-                        {visibleSteps.includes('prtee') && <ScoreCard title="PRTEE (Fonction)" score={prteeScores.function} maxScore={100} isComplete={wasPrteeFilled} onClick={() => onEditQuestionnaire('prtee')} />}
-                        {visibleSteps.includes('prwe') && <ScoreCard title="PRWE (Douleur)" score={prweScores.pain} maxScore={50} isComplete={wasPrweFilled} onClick={() => onEditQuestionnaire('prwe')} />}
-                        {visibleSteps.includes('prwe') && <ScoreCard title="PRWE (Fonction)" score={prweScores.function} maxScore={100} isComplete={wasPrweFilled} onClick={() => onEditQuestionnaire('prwe')} />}
-                        {visibleSteps.includes('mhq') && <ScoreCard title="MHQ (Main)" score={null} completionText="Voir détails (multi-scores)" isComplete={wasMhqFilled} onClick={() => onEditQuestionnaire('mhq')} />}
-                        {visibleSteps.includes('vas') && <ScoreCard title="EVA Thoracique" score={vasScore} maxScore={10} isComplete={wasVasFilled} onClick={() => onEditQuestionnaire('vas')} />}
-                        {visibleSteps.includes('oswestryThoracic') && <ScoreCard title="Oswestry Thoracique" score={oswestryThoracicScore} maxScore={OSWESTRY_THORACIC_QUESTIONS_FR.length * 5} completionText={`${oswestryThoracicAnsweredSections}/${OSWESTRY_THORACIC_QUESTIONS_FR.length} sections répondues.`} isComplete={wasOswestryThoracicFilled} onClick={() => onEditQuestionnaire('oswestryThoracic')} />}
-                        {visibleSteps.includes('ikdc') && <ScoreCard title="IKDC (Genou)" score={null} completionText="Voir détails" isComplete={wasIkdcFilled} onClick={() => onEditQuestionnaire('ikdc')} />}
-                        {visibleSteps.includes('lysholm') && <ScoreCard title="Lysholm (Genou)" score={lysholmScore} maxScore={100} isComplete={wasLysholmFilled} onClick={() => onEditQuestionnaire('lysholm')} />}
-                        {visibleSteps.includes('koos') && <ScoreCard title="KOOS (Genou)" score={null} completionText="Voir détails (5 sous-échelles)" isComplete={wasKoosFilled} onClick={() => onEditQuestionnaire('koos')} />}
-                        {visibleSteps.includes('hoosps') && <ScoreCard title="HOOS-PS (Hanche)" score={hoospsScore} maxScore={20} isComplete={wasHoospsFilled} onClick={() => onEditQuestionnaire('hoosps')} />}
-                        {visibleSteps.includes('harriship') && <ScoreCard title="Harris Hip Score" score={null} completionText="Voir détails (calcul complexe)" isComplete={wasHarrisHipScoreFilled} onClick={() => onEditQuestionnaire('harriship')} />}
-                        {visibleSteps.includes('oxfordhip') && <ScoreCard title="Oxford Hip Score" score={oxfordHipScore} maxScore={48} isComplete={wasOxfordHipScoreFilled} onClick={() => onEditQuestionnaire('oxfordhip')} />}
-                        {visibleSteps.includes('hagos') && <ScoreCard title="HAGOS (Aine)" score={null} completionText="Voir détails (6 sous-échelles)" isComplete={wasHagosFilled} onClick={() => onEditQuestionnaire('hagos')} />}
-                        {visibleSteps.includes('pfdi') && <ScoreCard title="PFDI-20 (Pelvien)" score={null} completionText="Voir détails" isComplete={wasPfdiFilled} onClick={() => onEditQuestionnaire('pfdi')} />}
-                        {visibleSteps.includes('iciq') && <ScoreCard title="ICIQ-UI SF" score={null} completionText="Voir détails" isComplete={wasIciqFilled} onClick={() => onEditQuestionnaire('iciq')} />}
-                        {visibleSteps.includes('aofas') && <ScoreCard title="AOFAS (Cheville/Pied)" score={null} completionText="Voir détails" isComplete={wasAofasFilled} onClick={() => onEditQuestionnaire('aofas')} />}
-                        {visibleSteps.includes('fadi') && <ScoreCard title="FADI (Cheville/Pied)" score={null} completionText="Voir détails" isComplete={wasFadiFilled} onClick={() => onEditQuestionnaire('fadi')} />}
-                        {visibleSteps.includes('ffir') && <ScoreCard title="FFI-R (Pied)" score={null} completionText="Voir détails" isComplete={wasFfirFilled} onClick={() => onEditQuestionnaire('ffir')} />}
-                        {visibleSteps.includes('fogq') && <ScoreCard title="FOGQ (Marche)" score={null} completionText="Voir détails" isComplete={wasFogqFilled} onClick={() => onEditQuestionnaire('fogq')} />}
-                        {visibleSteps.includes('fes') && <ScoreCard title="FES (Confiance)" score={null} completionText="Voir détails" isComplete={wasFesFilled} onClick={() => onEditQuestionnaire('fes')} />}
-                        {visibleSteps.includes('fesi') && <ScoreCard title="FES-I (Préoccupation)" score={null} completionText="Voir détails" isComplete={wasFesiFilled} onClick={() => onEditQuestionnaire('fesi')} />}
-                        {visibleSteps.includes('berg') && <ScoreCard title="Berg (Équilibre)" score={null} completionText="Voir détails" isComplete={wasBergFilled} onClick={() => onEditQuestionnaire('berg')} />}
-                        {visibleSteps.includes('lefs') && <ScoreCard title="LEFS (Membre Inf)" score={null} completionText="Voir détails" isComplete={wasLefsFilled} onClick={() => onEditQuestionnaire('lefs')} />}
-                        {visibleSteps.includes('jfls') && <ScoreCard title="JFLS-20 (Mâchoire)" score={jflsScore} maxScore={200} isComplete={wasJflsFilled} onClick={() => onEditQuestionnaire('jfls')} />}
-                        {visibleSteps.includes('tmd') && <ScoreCard title="TMD (Mâchoire)" score={tmdScore} maxScore={10} isComplete={wasTmdFilled} onClick={() => onEditQuestionnaire('tmd')} />}
-                        {visibleSteps.includes('wpai') && <ScoreCard title="WPAI (Travail)" score={null} completionText="Voir détails" isComplete={wasWpaiFilled} onClick={() => onEditQuestionnaire('wpai')} />}
-                        {visibleSteps.includes('fabq') && <ScoreCard title="FABQ (Travail)" score={fabqScores.work} maxScore={42} isComplete={wasFabqFilled} onClick={() => onEditQuestionnaire('fabq')} />}
-                        {visibleSteps.includes('fabq') && <ScoreCard title="FABQ (Activité)" score={fabqScores.physicalActivity} maxScore={24} isComplete={wasFabqFilled} onClick={() => onEditQuestionnaire('fabq')} />}
-                        {visibleSteps.includes('pcs') && <ScoreCard title="PCS (Dramatisation)" score={pcsScore} maxScore={52} isComplete={wasPcsFilled} onClick={() => onEditQuestionnaire('pcs')} />}
-                        {visibleSteps.includes('csi') && <ScoreCard title="CSI (Sensibilisation)" score={csiScore} maxScore={100} isComplete={wasCsiFilled} onClick={() => onEditQuestionnaire('csi')} />}
-                        {visibleSteps.includes('mmrc') && <ScoreCard title="mMRC (Dyspnée)" score={mmrcScore} maxScore={4} isComplete={wasMmrcFilled} onClick={() => onEditQuestionnaire('mmrc')} />}
-                        {visibleSteps.includes('sgrq') && <ScoreCard title="SGRQ (Respiratoire)" score={null} completionText="Voir détails" isComplete={wasSgrqFilled} onClick={() => onEditQuestionnaire('sgrq')} />}
-                        {visibleSteps.includes('had') && <ScoreCard title="HAD (Anxiété/Dépression)" score={null} completionText="Voir scores détaillés" isComplete={Object.values(hadAnswers).some(a=>a!==null)} onClick={() => onEditQuestionnaire('had')} />}
+                        {visibleSteps.includes('oswestry') && <ScoreCard readOnly={readOnly} title="Oswestry (Incapacité lombaire)" score={oswestryScore} maxScore={OSWESTRY_QUESTIONS_FR.length * 5} completionText={`${oswestryAnsweredSections}/${OSWESTRY_QUESTIONS_FR.length} sections répondues.`} isComplete={wasOswestryFilled} onClick={() => onEditQuestionnaire('oswestry')} />}
+                        {visibleSteps.includes('quebec') && <ScoreCard readOnly={readOnly} title="Québec (Dos)" score={quebecScore} maxScore={QUEBEC_QUESTIONS_FR.length * 5} isComplete={wasQuebecFilled} onClick={() => onEditQuestionnaire('quebec')} />}
+                        {visibleSteps.includes('rolandmorris') && <ScoreCard readOnly={readOnly} title="Roland-Morris (Dos)" score={rolandMorrisScore} maxScore={ROLAND_MORRIS_QUESTIONS_FR.length} isComplete={wasRolandMorrisFilled} onClick={() => onEditQuestionnaire('rolandmorris')} />}
+                        {visibleSteps.includes('ndi') && <ScoreCard readOnly={readOnly} title="NDI (Cervical)" score={ndiScore} maxScore={NDI_QUESTIONS_FR.length * 5} completionText={`${ndiAnsweredSections}/${NDI_QUESTIONS_FR.length} sections répondues.`} isComplete={wasNdiFilled} onClick={() => onEditQuestionnaire('ndi')} />}
+                        {visibleSteps.includes('northwick') && <ScoreCard readOnly={readOnly} title="Northwick Park (Cervical)" score={northwickScore} maxScore={(NORTHWICK_PARK_QUESTIONS_FR.length - 1) * 4} completionText={`${northwickAnsweredSections}/${NORTHWICK_PARK_QUESTIONS_FR.length - 1} sections répondues.`} isComplete={wasNorthwickFilled} onClick={() => onEditQuestionnaire('northwick')} />}
+                        {visibleSteps.includes('copenhagen') && <ScoreCard readOnly={readOnly} title="Copenhagen (Cervical)" score={copenhagenScore} maxScore={COPENHAGEN_QUESTIONS_FR.length * 2} isComplete={wasCopenhagenFilled} onClick={() => onEditQuestionnaire('copenhagen')} />}
+                        {visibleSteps.includes('dash') && <ScoreCard readOnly={readOnly} title="DASH (Membre Sup)" score={dashScore} maxScore={100} completionText={`${dashAnsweredCount}/${DASH_QUESTIONS_FR.length} questions répondues (min 27 requis).`} isComplete={wasDashFilled} onClick={() => onEditQuestionnaire('dash')} />}
+                        {visibleSteps.includes('oss') && <ScoreCard readOnly={readOnly} title="OSS (Épaule)" score={ossScore} maxScore={OSS_QUESTIONS_FR.length * 4} isComplete={wasOssFilled} onClick={() => onEditQuestionnaire('oss')} />}
+                        {visibleSteps.includes('spadi') && <ScoreCard readOnly={readOnly} title="SPADI (Douleur)" score={spadiPainScore} maxScore={50} isComplete={wasSpadiFilled} onClick={() => onEditQuestionnaire('spadi')} />}
+                        {visibleSteps.includes('spadi') && <ScoreCard readOnly={readOnly} title="SPADI (Incapacité)" score={spadiDisabilityScore} maxScore={80} isComplete={wasSpadiFilled} onClick={() => onEditQuestionnaire('spadi')} />}
+                        {visibleSteps.includes('oes') && <ScoreCard readOnly={readOnly} title="OES (Coude)" score={oesScore} maxScore={48} isComplete={wasOesFilled} onClick={() => onEditQuestionnaire('oes')} />}
+                        {visibleSteps.includes('prtee') && <ScoreCard readOnly={readOnly} title="PRTEE (Douleur)" score={prteeScores.pain} maxScore={50} isComplete={wasPrteeFilled} onClick={() => onEditQuestionnaire('prtee')} />}
+                        {visibleSteps.includes('prtee') && <ScoreCard readOnly={readOnly} title="PRTEE (Fonction)" score={prteeScores.function} maxScore={100} isComplete={wasPrteeFilled} onClick={() => onEditQuestionnaire('prtee')} />}
+                        {visibleSteps.includes('prwe') && <ScoreCard readOnly={readOnly} title="PRWE (Douleur)" score={prweScores.pain} maxScore={50} isComplete={wasPrweFilled} onClick={() => onEditQuestionnaire('prwe')} />}
+                        {visibleSteps.includes('prwe') && <ScoreCard readOnly={readOnly} title="PRWE (Fonction)" score={prweScores.function} maxScore={100} isComplete={wasPrweFilled} onClick={() => onEditQuestionnaire('prwe')} />}
+                        {visibleSteps.includes('mhq') && <ScoreCard readOnly={readOnly} title="MHQ (Main)" score={null} completionText="Voir détails (multi-scores)" isComplete={wasMhqFilled} onClick={() => onEditQuestionnaire('mhq')} />}
+                        {visibleSteps.includes('vas') && <ScoreCard readOnly={readOnly} title="EVA Thoracique" score={vasScore} maxScore={10} isComplete={wasVasFilled} onClick={() => onEditQuestionnaire('vas')} />}
+                        {visibleSteps.includes('oswestryThoracic') && <ScoreCard readOnly={readOnly} title="Oswestry Thoracique" score={oswestryThoracicScore} maxScore={OSWESTRY_THORACIC_QUESTIONS_FR.length * 5} completionText={`${oswestryThoracicAnsweredSections}/${OSWESTRY_THORACIC_QUESTIONS_FR.length} sections répondues.`} isComplete={wasOswestryThoracicFilled} onClick={() => onEditQuestionnaire('oswestryThoracic')} />}
+                        {visibleSteps.includes('ikdc') && <ScoreCard readOnly={readOnly} title="IKDC (Genou)" score={null} completionText="Voir détails" isComplete={wasIkdcFilled} onClick={() => onEditQuestionnaire('ikdc')} />}
+                        {visibleSteps.includes('lysholm') && <ScoreCard readOnly={readOnly} title="Lysholm (Genou)" score={lysholmScore} maxScore={100} isComplete={wasLysholmFilled} onClick={() => onEditQuestionnaire('lysholm')} />}
+                        {visibleSteps.includes('koos') && <ScoreCard readOnly={readOnly} title="KOOS (Genou)" score={null} completionText="Voir détails (5 sous-échelles)" isComplete={wasKoosFilled} onClick={() => onEditQuestionnaire('koos')} />}
+                        {visibleSteps.includes('hoosps') && <ScoreCard readOnly={readOnly} title="HOOS-PS (Hanche)" score={hoospsScore} maxScore={20} isComplete={wasHoospsFilled} onClick={() => onEditQuestionnaire('hoosps')} />}
+                        {visibleSteps.includes('harriship') && <ScoreCard readOnly={readOnly} title="Harris Hip Score" score={null} completionText="Voir détails (calcul complexe)" isComplete={wasHarrisHipScoreFilled} onClick={() => onEditQuestionnaire('harriship')} />}
+                        {visibleSteps.includes('oxfordhip') && <ScoreCard readOnly={readOnly} title="Oxford Hip Score" score={oxfordHipScore} maxScore={48} isComplete={wasOxfordHipScoreFilled} onClick={() => onEditQuestionnaire('oxfordhip')} />}
+                        {visibleSteps.includes('hagos') && <ScoreCard readOnly={readOnly} title="HAGOS (Aine)" score={null} completionText="Voir détails (6 sous-échelles)" isComplete={wasHagosFilled} onClick={() => onEditQuestionnaire('hagos')} />}
+                        {visibleSteps.includes('pfdi') && <ScoreCard readOnly={readOnly} title="PFDI-20 (Pelvien)" score={null} completionText="Voir détails" isComplete={wasPfdiFilled} onClick={() => onEditQuestionnaire('pfdi')} />}
+                        {visibleSteps.includes('iciq') && <ScoreCard readOnly={readOnly} title="ICIQ-UI SF" score={null} completionText="Voir détails" isComplete={wasIciqFilled} onClick={() => onEditQuestionnaire('iciq')} />}
+                        {visibleSteps.includes('aofas') && <ScoreCard readOnly={readOnly} title="AOFAS (Cheville/Pied)" score={null} completionText="Voir détails" isComplete={wasAofasFilled} onClick={() => onEditQuestionnaire('aofas')} />}
+                        {visibleSteps.includes('fadi') && <ScoreCard readOnly={readOnly} title="FADI (Cheville/Pied)" score={null} completionText="Voir détails" isComplete={wasFadiFilled} onClick={() => onEditQuestionnaire('fadi')} />}
+                        {visibleSteps.includes('ffir') && <ScoreCard readOnly={readOnly} title="FFI-R (Pied)" score={null} completionText="Voir détails" isComplete={wasFfirFilled} onClick={() => onEditQuestionnaire('ffir')} />}
+                        {visibleSteps.includes('fogq') && <ScoreCard readOnly={readOnly} title="FOGQ (Marche)" score={null} completionText="Voir détails" isComplete={wasFogqFilled} onClick={() => onEditQuestionnaire('fogq')} />}
+                        {visibleSteps.includes('fes') && <ScoreCard readOnly={readOnly} title="FES (Confiance)" score={null} completionText="Voir détails" isComplete={wasFesFilled} onClick={() => onEditQuestionnaire('fes')} />}
+                        {visibleSteps.includes('fesi') && <ScoreCard readOnly={readOnly} title="FES-I (Préoccupation)" score={null} completionText="Voir détails" isComplete={wasFesiFilled} onClick={() => onEditQuestionnaire('fesi')} />}
+                        {visibleSteps.includes('berg') && <ScoreCard readOnly={readOnly} title="Berg (Équilibre)" score={null} completionText="Voir détails" isComplete={wasBergFilled} onClick={() => onEditQuestionnaire('berg')} />}
+                        {visibleSteps.includes('lefs') && <ScoreCard readOnly={readOnly} title="LEFS (Membre Inf)" score={null} completionText="Voir détails" isComplete={wasLefsFilled} onClick={() => onEditQuestionnaire('lefs')} />}
+                        {visibleSteps.includes('jfls') && <ScoreCard readOnly={readOnly} title="JFLS-20 (Mâchoire)" score={jflsScore} maxScore={200} isComplete={wasJflsFilled} onClick={() => onEditQuestionnaire('jfls')} />}
+                        {visibleSteps.includes('tmd') && <ScoreCard readOnly={readOnly} title="TMD (Mâchoire)" score={tmdScore} maxScore={10} isComplete={wasTmdFilled} onClick={() => onEditQuestionnaire('tmd')} />}
+                        {visibleSteps.includes('wpai') && <ScoreCard readOnly={readOnly} title="WPAI (Travail)" score={null} completionText="Voir détails" isComplete={wasWpaiFilled} onClick={() => onEditQuestionnaire('wpai')} />}
+                        {visibleSteps.includes('fabq') && <ScoreCard readOnly={readOnly} title="FABQ (Travail)" score={fabqScores.work} maxScore={42} isComplete={wasFabqFilled} onClick={() => onEditQuestionnaire('fabq')} />}
+                        {visibleSteps.includes('fabq') && <ScoreCard readOnly={readOnly} title="FABQ (Activité)" score={fabqScores.physicalActivity} maxScore={24} isComplete={wasFabqFilled} onClick={() => onEditQuestionnaire('fabq')} />}
+                        {visibleSteps.includes('pcs') && <ScoreCard readOnly={readOnly} title="PCS (Dramatisation)" score={pcsScore} maxScore={52} isComplete={wasPcsFilled} onClick={() => onEditQuestionnaire('pcs')} />}
+                        {visibleSteps.includes('csi') && <ScoreCard readOnly={readOnly} title="CSI (Sensibilisation)" score={csiScore} maxScore={100} isComplete={wasCsiFilled} onClick={() => onEditQuestionnaire('csi')} />}
+                        {visibleSteps.includes('mmrc') && <ScoreCard readOnly={readOnly} title="mMRC (Dyspnée)" score={mmrcScore} maxScore={4} isComplete={wasMmrcFilled} onClick={() => onEditQuestionnaire('mmrc')} />}
+                        {visibleSteps.includes('sgrq') && <ScoreCard readOnly={readOnly} title="SGRQ (Respiratoire)" score={null} completionText="Voir détails" isComplete={wasSgrqFilled} onClick={() => onEditQuestionnaire('sgrq')} />}
+                        {visibleSteps.includes('had') && <ScoreCard readOnly={readOnly} title="HAD (Anxiété/Dépression)" score={null} completionText="Voir scores détaillés" isComplete={Object.values(hadAnswers).some(a=>a!==null)} onClick={() => onEditQuestionnaire('had')} />}
                         
                         {/* Dynamic PSFS Questionnaires */}
                         {/* FIX: Typed psfsInstances is used for mapping. */}
                         {psfsInstances.map(([zone, answers]) => {
                             const isComplete = answers.activities.some(a => a.description.trim() !== '');
                              const stepId = `psfs_${zone.replace(/\s+/g, '_')}`;
-                            return <ScoreCard key={zone} title={`PSFS (${zone})`} score={null} completionText="Voir détails" isComplete={isComplete} onClick={() => onEditQuestionnaire(stepId)} />;
+                            return <ScoreCard readOnly={readOnly} key={zone} title={`PSFS (${zone})`} score={null} completionText="Voir détails" isComplete={isComplete} onClick={() => onEditQuestionnaire(stepId)} />;
                         })}
                     </div>
                 </section>
@@ -663,7 +667,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
                          const stepId = `psfs_${zone.replace(/\s+/g, '_')}`;
                          return (
                             <div key={zone} className="p-4 border rounded-lg mb-4">
-                                <h4 className="font-bold text-lg">PSFS ({zone}) <button onClick={() => onEditQuestionnaire(stepId)} className="text-sm text-blue-600 hover:underline ml-4 no-print">(Modifier)</button></h4>
+                                <h4 className="font-bold text-lg">PSFS ({zone}) {!readOnly && <button onClick={() => onEditQuestionnaire(stepId)} className="text-sm text-blue-600 hover:underline ml-4 no-print">(Modifier)</button>}</h4>
                                 {answers.activities.map((activity, index) => (
                                     activity.description && <p key={index} className="text-sm"><strong>Activité {index + 1}:</strong> {activity.description} (Score: {activity.score ?? 'N/A'})</p>
                                 ))}
@@ -676,16 +680,16 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
             <footer className="mt-12 pt-6 border-t no-print">
                  {submissionStatus === 'idle' && (
                      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                         <button onClick={onRestart} className="w-full sm:w-auto px-6 py-3 text-base font-semibold text-gray-700 bg-gray-200 rounded-lg shadow-sm hover:bg-gray-300">Recommencer</button>
+                         {!readOnly && <button onClick={onRestart} className="w-full sm:w-auto px-6 py-3 text-base font-semibold text-gray-700 bg-gray-200 rounded-lg shadow-sm hover:bg-gray-300">Recommencer</button>}
                          <button onClick={() => window.print()} className="w-full sm:w-auto px-6 py-3 text-base font-semibold text-[#1565C0] border border-[#1565C0] rounded-lg shadow-sm hover:bg-blue-50">Imprimer / Enregistrer en PDF</button>
                          <button onClick={handleDownloadPatientReport} className="w-full sm:w-auto px-6 py-3 text-base font-semibold text-white bg-[#FF8F87] rounded-lg shadow-sm hover:bg-rose-500">Télécharger le rapport (.txt)</button>
-                         <button onClick={handleSubmitToDrive} disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 text-base font-semibold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 disabled:bg-gray-400">
+                         {!readOnly && <button onClick={handleSubmitToDrive} disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 text-base font-semibold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 disabled:bg-gray-400">
                              {isSubmitting ? 'Envoi en cours...' : 'Soumettre le bilan'}
-                         </button>
+                         </button>}
                      </div>
                  )}
 
-                {submissionStatus !== 'idle' && (
+                {submissionStatus !== 'idle' && !readOnly && (
                     <div className={`p-4 rounded-md text-center ${submissionStatus === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         <p className="font-semibold">{submissionMessage}</p>
                         {submissionStatus === 'success' && <button onClick={onRestart} className="mt-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Retour à l'accueil</button>}
@@ -693,6 +697,20 @@ const SummaryPage: React.FC<SummaryPageProps> = ({
                     </div>
                 )}
             </footer>
+            {/* Drive submission confirmation modal (#M08) */}
+            {showDriveConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" role="dialog" aria-modal="true" aria-labelledby="drive-confirm-title">
+                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+                        <h3 id="drive-confirm-title" className="text-lg font-bold text-gray-800 mb-3">Envoi vers Google Drive</h3>
+                        <p className="text-gray-600 mb-2">Vous êtes sur le point d'envoyer les données de ce bilan vers Google Drive.</p>
+                        <p className="text-gray-600 mb-6">Les données seront transmises de manière sécurisée. Confirmez-vous l'envoi ?</p>
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={() => setShowDriveConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-semibold transition-colors">Annuler</button>
+                            <button onClick={confirmSubmitToDrive} className="px-4 py-2 bg-[#1565C0] text-white rounded-xl hover:bg-[#0D57A6] font-semibold transition-colors">Confirmer l'envoi</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
